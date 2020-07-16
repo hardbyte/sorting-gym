@@ -25,16 +25,25 @@ def test_bubble_sort_agent():
         stride = 6
         return cmps[i-1 + stride*j]
 
+    def v_equals(observation, i, j) -> bool:
+        cmps = observation['pairwise_view_comparisons']
+        stride = 6
+        return cmps[i + stride*j]
+
     def data_neigbour_greater(obs, i, direction):
         cmps = obs['neighbour_view_comparisons']
         stride = 0 if direction == -1 else 4
         return cmps[i + stride]
 
+    # Return instructions
     def SwapWithNext(i):
         return 0, i
 
     def MoveVar(i, direction):
         return 1, i, direction > 0.5
+
+    def AssignVar(a, b):
+        return 2, a, b
 
     def bubble_sort_agent(obs):
         i, j, l = 1, 2, 3
@@ -43,9 +52,15 @@ def test_bubble_sort_agent():
                 return SwapWithNext(i)
             else:
                 return MoveVar(i, +1)
-        # TODO...
+        elif v_equals(obs, i, j):
+            return MoveVar(j, -1)
+        else:
+            return AssignVar(i, l)
 
-    bubble_sort_agent(obs)
+    for step in range(5):
+        action = bubble_sort_agent(obs)
+        print(action)
+        obs = env.step(action)
 
 
 if __name__ == '__main__':
