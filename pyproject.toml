@@ -1,9 +1,14 @@
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+
 [tool.poetry]
 name = "sorting-gym"
-version = "0.0.1"
+version = "0.0.2"
 description = "OpenAI Gym Environments for Sorting based"
 authors = ["Brian Thorne <brian@hardbyte.nz>"]
 repository = "https://github.com/hardbyte/sorting-gym"
+readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">3.7"
@@ -12,3 +17,6 @@ gym = "^0.17.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.4"
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/hardbyte/sorting-gym/issues"

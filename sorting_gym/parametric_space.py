@@ -8,7 +8,7 @@ class DiscreteParametric(Space):
 
     Example usage:
 
-    >>> action_space = DiscreteParametric(2, ([Discrete(2), Discrete(3)])])
+    >>> action_space = DiscreteParametric(2, ([Discrete(2), Discrete(3)]))
 
     """
     def __init__(self, n, spaces):

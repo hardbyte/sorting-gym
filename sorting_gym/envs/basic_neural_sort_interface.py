@@ -8,7 +8,23 @@ from sorting_gym.envs.tape import SortTapeAlgorithmicEnv
 from sorting_gym.parametric_space import DiscreteParametric
 
 
-class BubbleInsertionSortInterfaceEnv(Env):
+###########################
+# Return instructions
+###########################
+
+def SwapWithNext(i):
+    return 0, i
+
+
+def MoveVar(i, direction):
+    return 1, i, direction > 0.5
+
+
+def AssignVar(a, b):
+    return 2, a, b
+
+
+class BasicNeuralSortInterfaceEnv(Env):
     """
     Neural Computer based environment
     c.f. Section 4.1.2

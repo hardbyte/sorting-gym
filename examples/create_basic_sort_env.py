@@ -1,8 +1,8 @@
 import gym
 import sorting_gym
-from sorting_gym.envs.bubblesort import BubbleInsertionSortInterfaceEnv
+from sorting_gym.envs.basic_neural_sort_interface import BasicNeuralSortInterfaceEnv
 
-env: BubbleInsertionSortInterfaceEnv = gym.make('BasicNeuralSortInterfaceEnv-v0').unwrapped
+env: BasicNeuralSortInterfaceEnv = gym.make('BasicNeuralSortInterfaceEnv-v0').unwrapped
 observation = env.reset()
 
 
