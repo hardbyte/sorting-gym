@@ -1,5 +1,6 @@
-from sorting_gym.envs.basic_neural_sort_interface import SwapWithNext, AssignVar, MoveVar
-
+################################
+# Helpers to lookup comparisons
+###############################
 
 def _get_pairwise_offset(i, j, k):
     i_jmp = 0
@@ -36,6 +37,27 @@ def data_neighbour_less(obs, i, direction):
     cmps = obs['neighbour_view_comparisons']
     offset = 3 if direction == -1 else 6
     return cmps[8*i + offset]
+
+
+###########################
+# Return instructions
+###########################
+
+
+def SwapWithNext(i):
+    return 0, i
+
+
+def MoveVar(i, direction):
+    return 1, i, direction > 0.5
+
+
+def AssignVar(a, b):
+    return 2, a, b
+
+###########################
+# Agents
+###########################
 
 
 def bubble_sort_agent(obs, k):

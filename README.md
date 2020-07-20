@@ -41,6 +41,7 @@ RL Agents may want to consider supporting parametric/auto-regressive actions:
 - [ ] Implement quick sort agent to test function environment
 - [ ] Include an example solution to train an agent via RL
 - [ ] Environment rendering
+- [ ] Remove the tape environment from open ai gym (used to generate longer data as agent levels up)
 
 ### Ideas to take it further:
 

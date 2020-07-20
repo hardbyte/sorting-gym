@@ -1,27 +1,28 @@
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
+from dataclasses import dataclass
+from typing import Callable
 
-from gym import Env
-from gym.spaces import Discrete, Dict, MultiBinary, flatten_space, Tuple, MultiDiscrete
+from gym import Env, Space
+from gym.spaces import Discrete, Dict, MultiBinary, Tuple
 import numpy as np
 
 from sorting_gym.envs.tape import SortTapeAlgorithmicEnv
 from sorting_gym.parametric_space import DiscreteParametric
 
 
-###########################
-# Return instructions
-###########################
+@dataclass(frozen=True)
+class Instruction:
+    """
+    Keeps track of an instruction's:
+    opcode, name, argument space
+    """
+    opcode: int
+    name: str
+    argument_space: Space
+    implementation: Callable
 
-def SwapWithNext(i):
-    return 0, i
-
-
-def MoveVar(i, direction):
-    return 1, i, direction > 0.5
-
-
-def AssignVar(a, b):
-    return 2, a, b
+    def __repr__(self):
+        return f"<Instruction {self.opcode} - {self.name}>"
 
 
 class BasicNeuralSortInterfaceEnv(Env):
@@ -48,32 +49,18 @@ class BasicNeuralSortInterfaceEnv(Env):
         self.tape_env = SortTapeAlgorithmicEnv(base=base, starting_min_length=4)
 
         self.INSTRUCTIONS = [
-            # Instruction name, arg size in bits
-            ('SwapWithNext', k),
-            ('MoveVar', k + 1),
-            ('AssignVar', 2 * k),
+            # Instruction(opcode, name, argument space, implementation method)
+            Instruction(0, 'SwapWithNext', Discrete(k),                             self.op_swap_with_next),
+            Instruction(1, 'MoveVar',      Tuple([Discrete(k), MultiBinary(1)]),    self.op_move_var),
+            Instruction(2, 'AssignVar',    Tuple([Discrete(k), Discrete(k)]),       self.op_assign_var),
         ]
 
         # Action space is variable - conditioned on the instruction selected
         # This isn't really well supported by the OpenAI Gym api so we've
         # made our own `DiscreteParametric` space class.
-
-        action_SwapWithNext_space = Discrete(k)
-        action_MoveVar_space = Tuple([Discrete(k), MultiBinary(1)])
-        action_AssignVar_space = Tuple([Discrete(k), Discrete(k)])
-
         self.action_space = DiscreteParametric(len(self.INSTRUCTIONS),
-                                               [action_SwapWithNext_space,
-                                                action_MoveVar_space,
-                                                action_AssignVar_space])
+                                               [instruction.argument_space for instruction in self.INSTRUCTIONS])
 
-        """
-        Observation:
-
-        - Comparisons between data view pairs (<, ==, >) for both index and data
-        - Comparisons to neighbours in original data.
-
-        """
         self.nested_observation_space = Dict(
             pairwise_view_comparisons=MultiBinary((6 * k) * (k-1)//2),
             neighbour_view_comparisons=MultiBinary((4 * k) * 2),
@@ -130,37 +117,38 @@ class BasicNeuralSortInterfaceEnv(Env):
 
         return self._get_obs()
 
+    def op_swap_with_next(self, args):
+        # SwapWithNext(i)
+        # swaps A[v_i] and A[v_i + 1]
+        i = args[0]
+        v_i = self.v[i]
+        v_i_next = min(len(self.A) - 1, v_i + 1)
+        assert v_i < len(self.A), f"Expected v_i ({v_i}) to be less than len(A) ({len(self.A)})"
+        assert v_i_next < len(self.A)
+        self.A[v_i], self.A[v_i_next] = self.A[v_i_next], self.A[v_i]
+
+    def op_move_var(self, args):
+        # MoveVar(i, +/- 1)
+        # increments or decrements v_i
+        # bounded by start and end of the view.
+        i, direction = args
+        if direction:
+            self.v[i] = min(self.v[i] + 1, len(self.A) - 1)
+        else:
+            self.v[i] = max(self.v[i] - 1, 0)
+
+    def op_assign_var(self, args):
+        # AssignVar(i, j)
+        # assigns v_i = v_j
+        i, j = args
+        self.v[i] = self.v[j]
+
+    def dispatch(self, instruction, args):
+        self.INSTRUCTIONS[instruction].implementation(args)
+
     def step(self, action):
         instruction, *args = action
-
-        if instruction == 0:
-            # SwapWithNext(i)
-            # swaps A[v_i] and A[v_i + 1]
-            i = args[0]
-            v_i = self.v[i]
-            v_i_next = min(len(self.A) - 1, v_i + 1)
-            assert v_i < len(self.A), f"Expected v_i ({v_i}) to be less than len(A) ({len(self.A)})"
-            assert v_i_next < len(self.A)
-            self.A[v_i], self.A[v_i_next] = self.A[v_i_next], self.A[v_i]
-
-        elif instruction == 1:
-            # MoveVar(i, +/- 1)
-            # increments or decrements v_i
-            # bounded by start and end of the view.
-            i, direction = args
-            if direction:
-                self.v[i] = min(self.v[i] + 1, len(self.A) - 1)
-            else:
-                self.v[i] = max(self.v[i] - 1, 0)
-
-        elif instruction == 2:
-            # AssignVar(i, j)
-            # assigns v_i = v_j
-            i, j = args
-            self.v[i] = self.v[j]
-
-        else:
-            raise ValueError()
+        self.dispatch(instruction, args)
 
         # Check for solved, calculate reward
         done = self.A == self.tape_env.target
@@ -169,7 +157,6 @@ class BasicNeuralSortInterfaceEnv(Env):
             self.tape_env.episode_total_reward = len(self.A)
         reward = -1
         info_dict = {'data': self.A, 'interface': self.v}
-
         return self._get_obs(), reward, done, info_dict
 
     def render(self, mode='human'):

@@ -1,5 +1,4 @@
 import pytest
-import numpy as np
 from gym.spaces import flatten, flatdim
 
 from sorting_gym.agents.scripted import bubble_sort_agent, insertion_sort_agent
