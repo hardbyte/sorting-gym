@@ -4,8 +4,8 @@ from gym import Env
 from gym.spaces import Discrete, Dict, MultiBinary, flatten_space, Tuple, MultiDiscrete
 import numpy as np
 
-from sortingenv.envs.tape import SortTapeAlgorithmicEnv
-from sortingenv.parametric_space import DiscreteParametric
+from sorting_gym.envs.tape import SortTapeAlgorithmicEnv
+from sorting_gym.parametric_space import DiscreteParametric
 
 
 class BubbleInsertionSortInterfaceEnv(Env):

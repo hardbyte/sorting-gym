@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "sorting-gym"
+version = "0.0.1"
+description = "OpenAI Gym Environments for Sorting based"
+authors = ["Brian Thorne <brian@hardbyte.nz>"]
+repository = "https://github.com/hardbyte/sorting-gym"
+
+[tool.poetry.dependencies]
+python = ">3.7"
+numpy = "^1.19.0"
+gym = "^0.17.2"
+
+[tool.poetry.dev-dependencies]
+pytest = "^3.4"

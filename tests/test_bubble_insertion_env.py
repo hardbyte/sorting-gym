@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from gym.spaces import flatten, flatdim
 
-from sortingenv.envs.bubblesort import BubbleInsertionSortInterfaceEnv
+from sorting_gym.envs.bubblesort import BubbleInsertionSortInterfaceEnv
 
 
 def test_observation_size():
