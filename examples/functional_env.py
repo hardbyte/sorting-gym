@@ -1,7 +1,7 @@
 
 import gym
 import sorting_gym
-from sorting_gym.envs.basic_neural_sort_interface import FunctionalNeuralSortInterfaceEnv
+from sorting_gym.envs.functional_neural_sort_interface import FunctionalNeuralSortInterfaceEnv
 
 env = FunctionalNeuralSortInterfaceEnv()
 observation = env.reset()

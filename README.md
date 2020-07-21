@@ -37,11 +37,12 @@ RL Agents may want to consider supporting parametric/auto-regressive actions:
 
 - [x] Implement bubblesort/insertion sort environment.
 - [x] Implement bubblesort/insertion sort agents as tests.
-- [ ] Implement function stack environment
-- [ ] Implement quick sort agent to test function environment
+- [ ] Implement function environment/s. Perhaps worth trying a no arg version, then the version from the paper.
+- [ ] Implement quick sort scripted agent to test function environment.
 - [ ] Include an example solution to train an agent via RL
-- [ ] Environment rendering
+- [ ] Environment rendering (at least text based, optional dependency for rendering graphically with e.g. pygame)
 - [ ] Remove the tape environment from open ai gym (used to generate longer data as agent levels up)
+- [ ] Housekeeping - license and ci
 
 ### Ideas to take it further:
 

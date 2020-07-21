@@ -1,58 +1,56 @@
 from collections import OrderedDict
-from dataclasses import dataclass
-from typing import Callable
 
-from gym import Space
-from gym.spaces import Discrete, Dict, MultiBinary, Tuple
 import numpy as np
+from gym.spaces import Tuple, Discrete, MultiBinary, Dict
 
+from sorting_gym.envs.basic_neural_sort_interface import Instruction
 from sorting_gym.envs.sort_interface_base import NeuralSortInterfaceEnv
 
 
-@dataclass(frozen=True)
-class Instruction:
+class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
     """
-    Keeps track of an instruction's:
-    opcode, name, argument space
-    """
-    opcode: int
-    name: str
-    argument_space: Space
-    implementation: Callable
-
-    def __repr__(self):
-        return f"<Instruction {self.opcode} - {self.name}>"
-
-
-class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
-    """
-    Neural Computer based environment
-    c.f. Section 4.1.2
-
-    Keeps track of k index variables $v_1, .., v_k$
+    Neural Computer based environment with functions.
 
     Actions:
     - SwapWithNext(i) which swaps A[v_i] and A[v_i + 1];
     - MoveVar(i, +/- 1) which increments or decrements v_i
       bounded by start and end of the view.
     - AssignVar(i, j) which assigns v_i = v_j
-
+    - FunctionCall(id, l_1, ... l_p, o_1, ..., o_p, r_1, ..., r_q)
+    - Return(lp_1, ... lp_q)
     """
 
-    def __init__(self, base=10, k=4):
+    def __init__(self, base=10, k=4, number_of_functions=2, function_inputs=2, function_returns=1):
+
+        function_space = Tuple([
+            # Function ID
+            Discrete(number_of_functions), ] +
+            # local variables to be assigned
+            [Discrete(k)] * function_inputs +
+            # outer-scope variables to be passed in
+            [Discrete(k)] * function_inputs +
+            # return variables
+            [Discrete(k)] * function_returns
+        )
 
         instructions = [
             # Instruction(opcode, name, argument space, implementation method)
             Instruction(0, 'SwapWithNext', Discrete(k),                             self.op_swap_with_next),
             Instruction(1, 'MoveVar',      Tuple([Discrete(k), MultiBinary(1)]),    self.op_move_var),
             Instruction(2, 'AssignVar',    Tuple([Discrete(k), Discrete(k)]),       self.op_assign_var),
+            Instruction(3, 'FunctionCall', function_space,                          self.op_function_call),
+            Instruction(4, 'Return',       Tuple([Discrete(k)] * function_returns), self.op_function_return),
         ]
         # super call will add the action_space attribute
         super().__init__(base, k, instructions)
 
+        self.current_function = -1
+        self.call_stack = []
+
         self.nested_observation_space = Dict(
             pairwise_view_comparisons=MultiBinary((6 * k) * (k-1)//2),
             neighbour_view_comparisons=MultiBinary((4 * k) * 2),
+            current_function=Discrete(number_of_functions)
         )
         # self.observation_space = flatten_space(self.nested_observation_space)
         self.observation_space = self.nested_observation_space
@@ -93,12 +91,26 @@ class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
                     pairwise_comparisons[i_jmp + (j_stride)*6 + 4] = self.A[self.v[i]] == self.A[self.v[j]]
                     pairwise_comparisons[i_jmp + (j_stride)*6 + 5] = self.A[self.v[i]] > self.A[self.v[j]]
 
-        return OrderedDict([('neighbour_view_comparisons', neighbour_comparisons.flatten()),
-                            ('pairwise_view_comparisons', pairwise_comparisons)])
+        return OrderedDict([
+            ('neighbour_view_comparisons', neighbour_comparisons.flatten()),
+            ('pairwise_view_comparisons', pairwise_comparisons),
+            ('current_function', self.current_function)
+        ])
 
     def reset(self):
         super().reset()
+        self.current_function = -1
+        self.call_stack = []
         return self._get_obs()
+
+    def op_function_call(self, args):
+        function_id, *function_arguments = args
+        self.call_stack.append([self.current_function, 'argument mapping todo'])
+        self.current_function = function_id
+
+    def op_function_return(self, args):
+        previous_function, *other = self.call_stack.pop()
+        self.current_function = previous_function
 
     def op_swap_with_next(self, args):
         # SwapWithNext(i)
@@ -141,5 +153,3 @@ class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
 
     def render(self, mode='human'):
         return self.tape_env.render(mode)
-
-
