@@ -23,13 +23,12 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Poetry Install
-      uses: knowsuchagency/poetry-install@v2
-      with:
-        # Have poetry create a virtualenv for the project on installation.
-        create-virtualenv: true # optional, default is false
-    - name: Install linter dependencies
       run: |
         python -m pip install --upgrade pip
+        curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+        poetry install
+    - name: Install linter dependencies
+      run: |
         pip install flake8 black
     - name: Lint with flake8
       run: |
