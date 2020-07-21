@@ -29,8 +29,7 @@ jobs:
     - name: Install poetry
       shell: bash
       run: |
-        curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py
-        ls
+        curl -sSL -o get-poetry.py https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py
         python get-poetry.py -y
         echo "::set-env name=PATH::$HOME/.poetry/bin:$PATH"
     - name: Configure poetry
