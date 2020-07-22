@@ -2,6 +2,7 @@
 # Helpers to lookup comparisons
 ###############################
 
+
 def _get_pairwise_offset(i, j, k):
     i_jmp = 0
     for tmpi in range(i-1, -1, -1):

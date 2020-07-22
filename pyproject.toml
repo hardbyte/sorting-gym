@@ -9,6 +9,7 @@ description = "OpenAI Gym Environments for Sorting based"
 authors = ["Brian Thorne <brian@hardbyte.nz>"]
 repository = "https://github.com/hardbyte/sorting-gym"
 readme = "README.md"
+license = "Apache-2.0"
 
 [tool.poetry.dependencies]
 python = ">3.7"
