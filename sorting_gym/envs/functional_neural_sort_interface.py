@@ -18,9 +18,14 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
     - AssignVar(i, j) which assigns v_i = v_j
     - FunctionCall(id, l_1, ... l_p, o_1, ..., o_p, r_1, ..., r_q)
     - Return(lp_1, ... lp_q)
+    - Swap(i, j) which swaps A[v_i] with A[v_j]
     """
 
     def __init__(self, base=10, k=4, number_of_functions=2, function_inputs=2, function_returns=1):
+
+        self.number_of_functions = number_of_functions
+        self.function_inputs = function_inputs
+        self.function_returns = function_returns
 
         function_space = Tuple([
             # Function ID
@@ -40,6 +45,7 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
             Instruction(2, 'AssignVar',    Tuple([Discrete(k), Discrete(k)]),       self.op_assign_var),
             Instruction(3, 'FunctionCall', function_space,                          self.op_function_call),
             Instruction(4, 'Return',       Tuple([Discrete(k)] * function_returns), self.op_function_return),
+            Instruction(5, 'Swap',         Tuple([Discrete(k), Discrete(k)]),       self.op_swap),
         ]
         # super call will add the action_space attribute
         super().__init__(base, k, instructions)
@@ -104,13 +110,51 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         return self._get_obs()
 
     def op_function_call(self, args):
+        """
+        Adds an entry to the call stack to keep track of the variables before the function call,
+        the variables that will receive the return values.
+
+        :param args:
+            A tuple comprising (id, l_1, ... l_p, o_1, ..., o_p, r_1, ..., r_q)
+            Where:
+            - l_1, ..., l_p are local variable IDs to be assigned
+            - o_1, ..., o_p are the external variable IDs to be passed in
+            - r_1, ..., r_q are the external variables IDs to receive the return values
+
+        Call stack is a list of tuples comprising:
+            - outer function's id (self.current_function)
+            - outer scope's data (self.A)
+            - outer scope's pointers (self.v)
+            - return value IDS as a tuple (r_1, ..., r_q)
+        """
+
         function_id, *function_arguments = args
-        self.call_stack.append([self.current_function, 'argument mapping todo'])
+        assert all(i < self.k for i in function_arguments), "arguments must be in the range 0 to k"
+        internal_ids = function_arguments[:self.function_inputs]
+        external_ids = self.v[function_arguments[self.function_inputs:2*self.function_inputs]]
+
+        return_values = function_arguments[-self.function_returns:]
+
+        self.call_stack.append([
+            self.current_function,
+            self.A.copy(),
+            self.v.copy(),
+            return_values
+        ])
         self.current_function = function_id
 
-    def op_function_return(self, args):
-        previous_function, *other = self.call_stack.pop()
-        self.current_function = previous_function
+        self.v[:] = 0
+        self.v[internal_ids] = external_ids
+
+    def op_function_return(self, return_values):
+        outer_function, outer_data, outer_variables, return_ids = self.call_stack.pop()
+        # assign the return values to the outer_variables
+        outer_variables[return_ids] = self.v[return_values]
+
+        # restore the outer scope
+        self.A = outer_data
+        self.v = outer_variables
+        self.current_function = outer_function
 
     def op_swap_with_next(self, args):
         # SwapWithNext(i)
@@ -121,6 +165,15 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         assert v_i < len(self.A), f"Expected v_i ({v_i}) to be less than len(A) ({len(self.A)})"
         assert v_i_next < len(self.A)
         self.A[v_i], self.A[v_i_next] = self.A[v_i_next], self.A[v_i]
+
+    def op_swap(self, args):
+        # Swap(i, j)
+        # swaps A[v_i] and A[v_j]
+        i, j = args
+        v_i = self.v[i]
+        v_j = self.v[j]
+
+        self.A[v_i], self.A[v_j] = self.A[v_j], self.A[v_i]
 
     def op_move_var(self, args):
         # MoveVar(i, +/- 1)
@@ -148,7 +201,7 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
             # So the strings get longer
             self.tape_env.episode_total_reward = len(self.A)
         reward = -1
-        info_dict = {'data': self.A, 'interface': self.v}
+        info_dict = {'data': self.A, 'interface': list(self.v), 'function': self.current_function}
         return self._get_obs(), reward, done, info_dict
 
     def render(self, mode='human'):

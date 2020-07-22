@@ -30,6 +30,37 @@ def test_function_env_preserves_function_id():
     assert obs['current_function'] == -1
 
 
+def test_function_env_can_pass_through_arg():
+    """
+    Functional environment with 1 function taking 1 arg and returning 1 arg
+    We will create a function that assigns the input to a local variable, and
+    returns that local variable.
+    """
+    env = FunctionalNeuralSortInterfaceEnv(k=3, number_of_functions=1, function_inputs=1, function_returns=1)
+    env.reset()
+    n = len(env.A) - 1
+    assert env.current_function == -1
+    assert env.v[1] == n
+    assert env.v[2] == 0
+    # Call the function 0 with:
+    # local variable ID l=0
+    # outer variable ID o=1 (pointing to end of array)
+    # returning ID r=2
+    obs, reward, done, info = env.step((3, 0, 0, 1, 2))
+    assert obs['current_function'] == 0
+    assert env.v[1] == 0
+    assert env.v[2] == 0
+    # Now inside the function assign "local" variable (id 1) with the function input (id 0)
+    # Which should be our locally passed in end of array pointer
+    obs, reward, done, info = env.step((2, 1, 0))
+    assert env.v[1] == n
+    assert env.v[2] == 0
+    # Now return from the function with local variable (id 1).
+    # Returning ID is 2, so now v[2] should be n
+    obs, reward, done, info = env.step((4, 1))
+    assert env.v[2] == n
+
+
 def test_bubble_sort_agent():
     """
     Functional environment should still work using the scripted
