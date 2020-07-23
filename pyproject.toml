@@ -4,7 +4,7 @@ build-backend = "poetry.masonry.api"
 
 [tool.poetry]
 name = "sorting-gym"
-version = "0.0.5"
+version = "0.0.6"
 description = "OpenAI Gym Environments for Sorting based"
 authors = ["Brian Thorne <brian@hardbyte.nz>"]
 repository = "https://github.com/hardbyte/sorting-gym"

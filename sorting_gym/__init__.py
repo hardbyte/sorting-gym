@@ -8,7 +8,7 @@ register(
 
 register(
     id='BasicNeuralSortInterfaceEnv-v0',
-    entry_point='sorting_gym.envs.bubblesort:BasicNeuralSortInterfaceEnv'
+    entry_point='sorting_gym.envs.basic_neural_sort_interface:BasicNeuralSortInterfaceEnv'
 )
 
 register(
