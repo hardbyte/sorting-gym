@@ -61,6 +61,76 @@ def test_function_env_can_pass_through_arg():
     assert env.v[2] == n
 
 
+
+def test_function_env_swap_args():
+    """
+    Functional environment with 1 function taking 2 arg and returning 2 args
+    We will create a function that swaps the inputs.
+    """
+    env = FunctionalNeuralSortInterfaceEnv(k=3, number_of_functions=1, function_inputs=2, function_returns=2)
+    env.reset()
+    n = len(env.A) - 1
+    assert env.current_function == -1
+    env.v[1] = 1
+    env.v[2] = 2
+    # Call the function
+    obs, reward, done, info = env.step((3, 0,
+                                        0, 1, # local inputs
+                                        1, 2, # outer variables
+                                        1, 2  # write over inputs
+                                        ))
+    assert obs['current_function'] == 0
+    assert env.v[0] == 1
+    assert env.v[1] == 2
+
+    # Swap the "local" variables
+    # Save temp var (id 2) with the first function input (id 0)
+    obs, reward, done, info = env.step((2, 2, 0))
+    # Assign v0 = v1
+    obs, reward, done, info = env.step((2, 0, 1))
+    # Assign v1 = v2
+    obs, reward, done, info = env.step((2, 1, 2))
+
+    assert env.v[0] == 2
+    assert env.v[1] == 1
+
+    # Now return from the function.
+    obs, reward, done, info = env.step((4, 0, 1))
+
+    # Check that the outer scope has had the variables swapped
+    assert env.v[1] == 2
+    assert env.v[2] == 1
+
+
+def test_function_env_swap_args_in_call():
+    """
+    Functional environment with 1 function taking 2 arg and returning 2 args
+    We will create a nop function that swaps the inputs by swapping the return args.
+    """
+    env = FunctionalNeuralSortInterfaceEnv(k=3, number_of_functions=1, function_inputs=2, function_returns=2)
+    env.reset()
+    n = len(env.A) - 1
+    assert env.current_function == -1
+    env.v[1] = 1
+    env.v[2] = 2
+    # Call the function
+    obs, reward, done, info = env.step((3, 0,
+                                        0, 1, # local inputs
+                                        1, 2, # outer variables
+                                        1, 2  # write over inputs
+                                        ))
+    assert obs['current_function'] == 0
+    assert env.v[0] == 1
+    assert env.v[1] == 2
+
+    # Now return from the function - swapping the return values around
+    obs, reward, done, info = env.step((4, 1, 0))
+
+    # Check that the outer scope has had the variables swapped
+    assert env.v[1] == 2
+    assert env.v[2] == 1
+
+
 def test_bubble_sort_agent():
     """
     Functional environment should still work using the scripted
