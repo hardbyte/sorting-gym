@@ -16,7 +16,6 @@ Importing the Python package `sorting_gym` will expose the following Gym environ
 - `SortTapeAlgorithmicEnv-v0` - Tape based environment based on [Gym's algorithmic environment](https://github.com/openai/gym/blob/master/gym/envs/algorithmic/algorithmic_env.py#L242))
 - `BasicNeuralSortInterfaceEnv-v0` - an interface where agents can implement simple algorithms such as bubble sort and insertion sort.
 - `FunctionalNeuralSortInterfaceEnv-v0` - extends the `BasicNeuralSortInterfaceEnv-v0` interface to include instructions for entering and exiting functions.
-  **TODO**  functions don't yet support arguments and return values.
 
 To define the parametric action space we introduce the `DiscreteParametric(Space)` type,
 allowing environments to describe disjoint output spaces, conditioned on a discrete space.
@@ -39,7 +38,7 @@ RL Agents may want to consider supporting parametric/auto-regressive actions:
 
 - [x] Implement bubblesort/insertion sort environment.
 - [x] Implement bubblesort/insertion sort agents as tests.
-- [ ] Implement function environment/s. Perhaps worth trying a no arg version, then the version from the paper.
+- [x] Implement function environment.
 - [ ] Implement quick sort scripted agent to test function environment.
 - [ ] Include an example solution to train an agent via RL
 - [ ] Environment rendering (at least text based, optional dependency for rendering graphically with e.g. pygame)
