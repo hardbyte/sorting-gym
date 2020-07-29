@@ -1,7 +1,7 @@
 import pytest
 from gym.spaces import flatten
 
-from sorting_gym.agents.scripted import bubble_sort_agent, insertion_sort_agent
+from sorting_gym.agents.scripted import bubble_sort_agent, insertion_sort_agent, quicksort_agent
 from sorting_gym.envs.functional_neural_sort_interface import FunctionalNeuralSortInterfaceEnv
 from tests.util import _test_sort_agent
 
@@ -59,7 +59,6 @@ def test_function_env_can_pass_through_arg():
     # Returning ID is 2, so now v[2] should be n
     obs, reward, done, info = env.step((4, 1))
     assert env.v[2] == n
-
 
 
 def test_function_env_swap_args():
@@ -147,3 +146,12 @@ def test_bubble_sort_agent_not_enough_pointers():
     with pytest.raises(IndexError):
         _test_sort_agent(agent_f, env, 100)
 
+
+def test_quick_sort_agent():
+    """
+    Tests the environment using a Quick Sort agent.
+
+    c.f. Algorithm 8 - pg 25
+    """
+    env = FunctionalNeuralSortInterfaceEnv(k=4, number_of_functions=2)
+    _test_sort_agent(quicksort_agent, env, verbose=False)

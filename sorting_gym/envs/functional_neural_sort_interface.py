@@ -123,7 +123,6 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
 
         Call stack is a list of tuples comprising:
             - outer function's id (self.current_function)
-            - outer scope's data (self.A)
             - outer scope's pointers (self.v)
             - return value IDS as a tuple (r_1, ..., r_q)
         """
@@ -137,7 +136,6 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
 
         self.call_stack.append([
             self.current_function,
-            self.A.copy(),
             self.v.copy(),
             return_values
         ])
@@ -147,12 +145,11 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         self.v[internal_ids] = external_ids
 
     def op_function_return(self, return_values):
-        outer_function, outer_data, outer_variables, return_ids = self.call_stack.pop()
+        outer_function, outer_variables, return_ids = self.call_stack.pop()
         # assign the return values to the outer_variables
         outer_variables[return_ids] = self.v[return_values]
 
         # restore the outer scope
-        self.A = outer_data
         self.v = outer_variables
         self.current_function = outer_function
 

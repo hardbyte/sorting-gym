@@ -56,6 +56,20 @@ def MoveVar(i, direction):
 def AssignVar(a, b):
     return 2, a, b
 
+
+def FunctionCall(function_id, local_scope, outer_scope, returns):
+    return [3, function_id] + local_scope + outer_scope + returns
+
+
+def Return(local_scope):
+    if not isinstance(local_scope, list):
+        local_scope = [local_scope]
+    return [4] + local_scope
+
+
+def Swap(a, b):
+    return 5, a, b
+
 ###########################
 # Agents
 ###########################
@@ -89,3 +103,40 @@ def insertion_sort_agent(obs, k):
             return MoveVar(j, -1)
         else:
             return AssignVar(j, i)
+
+
+def debug(*args, **kwargs):
+    if True:
+        print(*args, **kwargs)
+
+
+def _quicksort_f(obs):
+    i, j, low, high = 0, 1, 2, 3
+    if v_less_than(obs, low, high, k=4):
+        # if prev = None
+        raise NotImplementedError
+    else:
+        return Return(high)
+
+
+def quicksort_agent(obs, k):
+    """
+
+    Function 0 will be the entry point immediately calling function 1. `quicksort(low, high)`
+    Function 1 will be the recursive quicksort function.
+    Function 2 will carry out partitioning. given the index to the pivot, and returns
+    the pivot index after partitioning.
+
+    """
+
+    # Set initial value of vj
+    if obs['current_function'] == -1:
+        debug("Entering quicksort agent")
+        i, j, low, high = 0, 1, 2, 3
+        return FunctionCall(1, [low, high], [low, high], [high])
+    elif obs['current_function'] == 0:
+        return _quicksort_f(obs)
+    elif obs['current_function'] == 0:
+        return _partition_f(obs)
+    else:
+        raise ValueError("Unexpected function")

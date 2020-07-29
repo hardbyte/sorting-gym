@@ -1,5 +1,6 @@
 import numpy as np
 from gym import Env
+from gym.spaces import MultiDiscrete
 
 from sorting_gym import DiscreteParametric
 from sorting_gym.envs.tape import SortTapeAlgorithmicEnv
