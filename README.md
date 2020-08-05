@@ -48,14 +48,16 @@ RL Agents may want to consider supporting parametric/auto-regressive actions:
 
 ### Ideas to take it further:
 
-- [ ] Accelerate environment with cython (if required)
-- [ ] Open PR to `gym` for a discrete parametric space
-- [ ] Abstract out a Neural Controller Mixin/Environment Wrapper?
-- [ ] Consider a different/enhanced instruction set. 
-      Instead of always comparing every pointer and data element in the view (and neighbours), 
-      have explicit comparison instructions. Could extend to other math instructions, including
-      accounting for variable cost of the instructions.
-  
+- Accelerate environment with cython (if required)
+- Open PR to `gym` for a discrete parametric space
+- Abstract out a Neural Controller Mixin/Environment Wrapper?
+- Consider a different/enhanced instruction set. 
+  Instead of always comparing every pointer and data element in the view (and neighbours), 
+  have explicit comparison instructions. Could extend to other math instructions, including
+  accounting for variable cost of the instructions.
+- Instead of passing previous arguments, consider passing in the number of instructions
+  executed in the current scope as a cheap program counter.
+- 
 
 ## Run test with pytest
 
@@ -68,5 +70,5 @@ pytest
 ```
 poetry update
 poetry build
-poetry package
+poetry publish
 ```

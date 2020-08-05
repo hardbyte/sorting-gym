@@ -9,7 +9,7 @@ from tests.util import _test_sort_agent
 def test_reset_gives_valid_observation():
     env = FunctionalNeuralSortInterfaceEnv(k=4, number_of_functions=5)
     obs = flatten(env.nested_observation_space, env.reset())
-    assert obs.shape[0] == 68 + 5
+    assert obs.shape[0] == 68 + 5 + 6 + 51 + 1
 
 
 def test_function_env_preserves_function_id():
@@ -154,4 +154,4 @@ def test_quick_sort_agent():
     c.f. Algorithm 8 - pg 25
     """
     env = FunctionalNeuralSortInterfaceEnv(k=4, number_of_functions=2)
-    _test_sort_agent(quicksort_agent, env, verbose=False)
+    _test_sort_agent(quicksort_agent, env, verbose=True, max_steps=5000)

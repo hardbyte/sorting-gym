@@ -51,12 +51,23 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         super().__init__(base, k, instructions)
 
         self.current_function = -1
+        self.previous_action = -1
+        self.new_scope = True
+        self.previous_args = np.zeros(51, dtype=bool)
         self.call_stack = []
 
         self.nested_observation_space = Dict(
             pairwise_view_comparisons=MultiBinary((6 * k) * (k-1)//2),
             neighbour_view_comparisons=MultiBinary((4 * k) * 2),
-            current_function=Discrete(number_of_functions)
+            current_function=Discrete(number_of_functions),
+            previous_action=Dict(
+                # Which of the 6 instructions was last
+                action_type=Discrete(6),
+                # Indicate the case of no previous action used at start of episode
+                # and on entering a function?
+                new_scope=MultiBinary(1),
+                arguments=MultiBinary(51)
+            ),
         )
         # self.observation_space = flatten_space(self.nested_observation_space)
         self.observation_space = self.nested_observation_space
@@ -97,15 +108,24 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
                     pairwise_comparisons[i_jmp + (j_stride)*6 + 4] = self.A[self.v[i]] == self.A[self.v[j]]
                     pairwise_comparisons[i_jmp + (j_stride)*6 + 5] = self.A[self.v[i]] > self.A[self.v[j]]
 
+        # previous action
+        # type
+
         return OrderedDict([
             ('neighbour_view_comparisons', neighbour_comparisons.flatten()),
             ('pairwise_view_comparisons', pairwise_comparisons),
-            ('current_function', self.current_function)
+            ('current_function', self.current_function),
+            ('previous_action', OrderedDict([
+                ('action_type', self.previous_action),
+                ('new_scope', [self.previous_action == -1 or self.new_scope]),
+                ('arguments', self.previous_args)
+            ]))
         ])
 
     def reset(self):
         super().reset()
         self.current_function = -1
+        self.previous_action = -1
         self.call_stack = []
         return self._get_obs()
 
@@ -143,6 +163,8 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
 
         self.v[:] = 0
         self.v[internal_ids] = external_ids
+
+        self.new_scope = True
 
     def op_function_return(self, return_values):
         outer_function, outer_variables, return_ids = self.call_stack.pop()
@@ -190,6 +212,7 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
 
     def step(self, action):
         instruction, *args = action
+        self.new_scope = False
         self.dispatch(instruction, args)
 
         # Check for solved, calculate reward
@@ -199,7 +222,90 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
             self.tape_env.episode_total_reward = len(self.A)
         reward = -1
         info_dict = {'data': self.A, 'interface': list(self.v), 'function': self.current_function}
+
+        self.previous_action = instruction
+
+        self._encode_args(instruction, args)
         return self._get_obs(), reward, done, info_dict
 
     def render(self, mode='human'):
-        return self.tape_env.render(mode)
+        print(f"""Data: {self.A}
+Interface: {list(self.v)}
+Current Function: {self.current_function}
+Previous Action: {self.previous_action}
+""")
+
+    def _encode_args(self, instruction, args):
+        """
+        Returns an array of 51 booleans corresponding to the arguments
+        for the previous instruction.
+        """
+        self.previous_args *= False
+
+        offset = 0
+        if instruction == 0:
+            # SwapWithNext Discrete(k)
+            # Set the bit at args[0] to True
+            self.previous_args[offset + args[0]] = True
+        offset += self.k
+
+        if instruction == 1:
+            # MoveVar(i, +/- 1) Tuple([Discrete(k), MultiBinary(1)])
+            i, direction = args
+            dir_offset = self._encode_and_set_discrete_arg(i, offset)
+            self.previous_args[dir_offset] = direction
+        offset += self.k + 1
+
+        if instruction == 2:
+            # AssignVar(i, j) Tuple([Discrete(k), Discrete(k)])
+            i, j = args
+            tmp_offset = self._encode_and_set_discrete_arg(i, offset)
+            self._encode_and_set_discrete_arg(j, tmp_offset)
+        offset += 2 * self.k
+
+        if instruction == 3:
+            # FunctionCall.
+            function_id, *function_arguments = args
+
+            # Encode function id
+            f_offset = self._encode_and_set_discrete_arg(function_id, offset, self.number_of_functions)
+
+            # Encode Local vars
+            internal_ids = function_arguments[:self.function_inputs]
+            for value in internal_ids:
+                f_offset = self._encode_and_set_discrete_arg(value, f_offset)
+
+            # Encode Nonlocal vars
+            external_ids = function_arguments[self.function_inputs:2 * self.function_inputs]
+            for value in external_ids:
+                f_offset = self._encode_and_set_discrete_arg(value, f_offset)
+
+            # Encode return values
+            return_values = function_arguments[-self.function_returns:]
+            for value in return_values:
+                f_offset = self._encode_and_set_discrete_arg(value, f_offset)
+
+        function_offset = self.number_of_functions + self.k * self.function_inputs * 2 + self.k * self.function_returns
+        offset += function_offset
+
+        if instruction == 4:
+            # return Tuple([Discrete(k)] * function_returns)
+            ret_offset = offset
+            for return_value in args:
+                ret_offset = self._encode_and_set_discrete_arg(return_value, ret_offset)
+
+        offset += self.function_returns * self.k
+
+        if instruction == 5:
+            # Swap Tuple([Discrete(k), Discrete(k)])
+            i, j = args
+            tmp_offset = self._encode_and_set_discrete_arg(i, offset)
+            self._encode_and_set_discrete_arg(j, tmp_offset)
+
+        offset += self.k *2
+
+    def _encode_and_set_discrete_arg(self, i, offset, size=None):
+        if size is None:
+            size = self.k
+        self.previous_args[offset + i] = True
+        return offset + size
