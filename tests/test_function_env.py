@@ -154,4 +154,4 @@ def test_quick_sort_agent():
     c.f. Algorithm 8 - pg 25
     """
     env = FunctionalNeuralSortInterfaceEnv(k=4, number_of_functions=2)
-    _test_sort_agent(quicksort_agent, env, verbose=True, max_steps=5000)
+    _test_sort_agent(quicksort_agent, env, number_of_problems=100, max_steps=10000, verbose=True)

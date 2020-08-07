@@ -145,6 +145,7 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
             - outer function's id (self.current_function)
             - outer scope's pointers (self.v)
             - return value IDS as a tuple (r_1, ..., r_q)
+            - encoding of the function args
         """
 
         function_id, *function_arguments = args
@@ -152,12 +153,14 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         internal_ids = function_arguments[:self.function_inputs]
         external_ids = self.v[function_arguments[self.function_inputs:2*self.function_inputs]]
 
+        encoded_args = self._encode_function_args(args, offset=4*self.k+1)
         return_values = function_arguments[-self.function_returns:]
 
         self.call_stack.append([
             self.current_function,
             self.v.copy(),
-            return_values
+            return_values,
+            encoded_args
         ])
         self.current_function = function_id
 
@@ -167,13 +170,15 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         self.new_scope = True
 
     def op_function_return(self, return_values):
-        outer_function, outer_variables, return_ids = self.call_stack.pop()
+        outer_function, outer_variables, return_ids, function_encoded_args = self.call_stack.pop()
         # assign the return values to the outer_variables
         outer_variables[return_ids] = self.v[return_values]
 
         # restore the outer scope
         self.v = outer_variables
         self.current_function = outer_function
+
+        self._function_encoded_args = function_encoded_args
 
     def op_swap_with_next(self, args):
         # SwapWithNext(i)
@@ -264,28 +269,10 @@ Previous Action: {self.previous_action}
         offset += 2 * self.k
 
         if instruction == 3:
-            # FunctionCall.
-            function_id, *function_arguments = args
+            function_encoding = self._encode_function_args(args, offset)
+            self.last_function_encoded_args = function_encoding
 
-            # Encode function id
-            f_offset = self._encode_and_set_discrete_arg(function_id, offset, self.number_of_functions)
-
-            # Encode Local vars
-            internal_ids = function_arguments[:self.function_inputs]
-            for value in internal_ids:
-                f_offset = self._encode_and_set_discrete_arg(value, f_offset)
-
-            # Encode Nonlocal vars
-            external_ids = function_arguments[self.function_inputs:2 * self.function_inputs]
-            for value in external_ids:
-                f_offset = self._encode_and_set_discrete_arg(value, f_offset)
-
-            # Encode return values
-            return_values = function_arguments[-self.function_returns:]
-            for value in return_values:
-                f_offset = self._encode_and_set_discrete_arg(value, f_offset)
-
-        function_offset = self.number_of_functions + self.k * self.function_inputs * 2 + self.k * self.function_returns
+        function_offset = self._get_function_call_encoding_size()
         offset += function_offset
 
         if instruction == 4:
@@ -293,6 +280,10 @@ Previous Action: {self.previous_action}
             ret_offset = offset
             for return_value in args:
                 ret_offset = self._encode_and_set_discrete_arg(return_value, ret_offset)
+
+            # pop the last function calls args from the stack.
+            f_offset = offset - function_offset
+            self.previous_args[f_offset:offset] = self._function_encoded_args
 
         offset += self.function_returns * self.k
 
@@ -302,7 +293,33 @@ Previous Action: {self.previous_action}
             tmp_offset = self._encode_and_set_discrete_arg(i, offset)
             self._encode_and_set_discrete_arg(j, tmp_offset)
 
-        offset += self.k *2
+        offset += self.k * 2
+
+    def _get_function_call_encoding_size(self):
+        function_offset = self.number_of_functions + self.k * self.function_inputs * 2 + self.k * self.function_returns
+        return function_offset
+
+    def _encode_function_args(self, args, offset=17):
+        function_offset = self._get_function_call_encoding_size()
+        self.previous_args[offset:offset + function_offset] = False
+        # FunctionCall.
+        function_id, *function_arguments = args
+        # Encode function id
+        f_offset = self._encode_and_set_discrete_arg(function_id, offset, self.number_of_functions)
+        # Encode Local vars
+        internal_ids = function_arguments[:self.function_inputs]
+        for value in internal_ids:
+            f_offset = self._encode_and_set_discrete_arg(value, f_offset)
+        # Encode Nonlocal vars
+        external_ids = function_arguments[self.function_inputs:2 * self.function_inputs]
+        for value in external_ids:
+            f_offset = self._encode_and_set_discrete_arg(value, f_offset)
+        # Encode return values
+        return_values = function_arguments[-self.function_returns:]
+        for value in return_values:
+            f_offset = self._encode_and_set_discrete_arg(value, f_offset)
+
+        return self.previous_args[offset:offset + function_offset].copy()
 
     def _encode_and_set_discrete_arg(self, i, offset, size=None):
         if size is None:

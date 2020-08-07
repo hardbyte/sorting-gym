@@ -132,7 +132,7 @@ def _last_move_was(previous_action, i, direction, k=4):
 def _last_swap_was(previous_action, i, j, k=4):
     args = previous_action['arguments']
     offset = k*4+1 + 22 + k
-    return args[offset + i] and args[offset + j]
+    return args[offset + i] and args[offset + k + j]
 
 
 def _last_assign_was(previous_action, i, j, k=4):
@@ -157,8 +157,8 @@ def _partition_f(obs, k=4):
     elif v_less_than(obs, j, high, k):
         if previous_action['action_type'] == 5 and _last_swap_was(previous_action, i, j):
             return MoveVar(i, +1)
-        elif previous_action['action_type'] == 2 and _last_assign_was(previous_action, j, low) or \
-             previous_action['action_type'] == 1 and _last_move_was(previous_action, j, +1) and \
+        elif (previous_action['action_type'] == 2 and _last_assign_was(previous_action, j, low) or \
+             previous_action['action_type'] == 1 and _last_move_was(previous_action, j, +1)) and \
              data_less_than(obs, j, high, k):
             if not v_equals(obs, i, j, k):
                 return Swap(i, j)
@@ -181,7 +181,7 @@ def _quicksort_f(obs, k=4):
         if previous_action['new_scope'][0]:
             return FunctionCall(1, [low, high], [low, high], [i])
         # else if prev is call function id 2
-        elif previous_action['action_type'] == 3 and _is_last_function(previous_action, 1):
+        elif previous_action['action_type'] == 4 and _is_last_function(previous_action, 1):
             # todo check args
             return AssignVar(j, i)
         elif previous_action['action_type'] == 2 and _last_assign_was(previous_action, j, i):
@@ -193,7 +193,7 @@ def _quicksort_f(obs, k=4):
                 return FunctionCall(0, [low, high], [low, i], [i])
             else:
                 return MoveVar(j, +1)
-        elif previous_action['action_type'] == 3 and _is_last_function(previous_action, 0):
+        elif previous_action['action_type'] == 4 and _is_last_function(previous_action, 0):
             return MoveVar(j, +1)
         elif previous_action['action_type'] == 1 and _last_move_was(previous_action, j, +1) and v_less_than(obs, j, high, k):
             return FunctionCall(0, [low, high], [j, high], [high])
@@ -205,15 +205,11 @@ def _quicksort_f(obs, k=4):
 
 def quicksort_agent(obs, k=4):
     """
-
     Function 0 will be the entry point immediately calling function 1. `quicksort(low, high)`
     Function 1 will be the recursive quicksort function.
     Function 2 will carry out partitioning. given the index to the pivot, and returns
     the pivot index after partitioning.
-
     """
-
-    # Set initial value of vj
     function_id = obs['current_function']
     if function_id == -1:
         i, j, low, high = 0, 1, 2, 3
