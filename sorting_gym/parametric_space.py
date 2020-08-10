@@ -1,5 +1,5 @@
 from gym import Space
-from gym.spaces import Tuple, Discrete
+from gym.spaces import Discrete
 
 
 class DiscreteParametric(Space):
