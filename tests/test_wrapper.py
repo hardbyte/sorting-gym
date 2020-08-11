@@ -31,5 +31,12 @@ def test_parametric_flat_wrap_actions():
 def test_parametric_wrapped_action_step():
     k = 2
     env = SimpleActionSpace(BasicNeuralSortInterfaceEnv(k=k))
-    action = env.action_space.sample()
+    # A random sample of the wrapped space won't be valid
+    action = np.zeros_like(env.action_space.sample())
+    # Set action to be SwapWithNext(1)
+    action[0] = 1.0
+    action[4] = 1.0
+
     env.step(action)
+
+

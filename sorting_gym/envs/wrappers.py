@@ -33,11 +33,17 @@ class SimpleActionSpace(ActionWrapper):
         num_disjoint_spaces = self.env.action_space.parameter_space.n
         parameter = np.argmax(action[:num_disjoint_spaces])
         argument_space = self.env.action_space.disjoint_spaces[parameter]
-        argument_sizes = [flatdim(s) for s in argument_space]
+
+        try:
+            argument_sizes = [flatdim(s) for s in argument_space]
+        except TypeError:
+            argument_sizes = [flatdim(argument_space)]
 
         # Now we need to index the appropriate args for the disjoint space using the parameter
-        start_index = num_disjoint_spaces + sum(self.disjoint_sizes[:parameter])
-        end_index = num_disjoint_spaces + sum(self.disjoint_sizes[:parameter+1])
+        start_index = end_index = num_disjoint_spaces
+        if parameter > 0:
+            start_index += sum(self.disjoint_sizes[:parameter-1])
+            end_index += sum(self.disjoint_sizes[:parameter])
 
         # Flattened arguments for the disjoint space
         args = []
@@ -47,6 +53,8 @@ class SimpleActionSpace(ActionWrapper):
             start_index += argument_size
 
         # unflatten the args and concat to finish transforming the action
+        if len(argument_sizes) == 1:
+            args = args[0]
         disjoint_args = unflatten(argument_space, args)
 
         transformed_action = tuple([parameter] + [disjoint_args])

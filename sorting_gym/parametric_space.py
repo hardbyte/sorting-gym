@@ -30,8 +30,7 @@ class DiscreteParametric(Space):
         if isinstance(x, list):
             x = tuple(x)  # Promote list to tuple for contains check
         parameter, args = x
-        return isinstance(args, tuple) and \
-               self.parameter_space.contains(parameter) and \
+        return self.parameter_space.contains(parameter) and \
                self.disjoint_spaces[parameter].contains(args)
 
     def __repr__(self):
