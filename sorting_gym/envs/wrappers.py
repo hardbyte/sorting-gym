@@ -1,7 +1,7 @@
 
-
+import numpy as np
 from gym import spaces, ActionWrapper
-from gym.spaces import flatten_space
+from gym.spaces import flatten_space, flatdim, unflatten
 
 from sorting_gym import DiscreteParametric
 
@@ -22,16 +22,36 @@ class SimpleActionSpace(ActionWrapper):
 
         # Construct a space from the parametric space's parameter_space and disjoint spaces
         self.action_space = flatten_space(spaces.Tuple([parametric_space.parameter_space] +
-                                                       list(parametric_space.dijoint_spaces)))
+                                                       list(parametric_space.disjoint_spaces)))
+
+        self.disjoint_sizes = [flatdim(space) for space in parametric_space.disjoint_spaces]
+
         print(self.action_space)
 
     def action(self, action):
-        raise NotImplemented("TODO")
+        # Get the discrete parameter value
+        num_disjoint_spaces = self.env.action_space.parameter_space.n
+        parameter = np.argmax(action[:num_disjoint_spaces])
+        argument_space = self.env.action_space.disjoint_spaces[parameter]
+        argument_sizes = [flatdim(s) for s in argument_space]
 
-        assert np.all(np.greater_equal(action, self.a)), (action, self.a)
-        assert np.all(np.less_equal(action, self.b)), (action, self.b)
-        low = self.env.action_space.low
-        high = self.env.action_space.high
-        action = low + (high - low)*((action - self.a)/(self.b - self.a))
-        action = np.clip(action, low, high)
-        return action
+        # Now we need to index the appropriate args for the disjoint space using the parameter
+        start_index = num_disjoint_spaces + sum(self.disjoint_sizes[:parameter])
+        end_index = num_disjoint_spaces + sum(self.disjoint_sizes[:parameter+1])
+
+        # Flattened arguments for the disjoint space
+        args = []
+        for argument_size in argument_sizes:
+            # Get the ith argument for this space
+            args.append(action[start_index: start_index + argument_size])
+            start_index += argument_size
+
+        # unflatten the args and concat to finish transforming the action
+        disjoint_args = unflatten(argument_space, args)
+
+        transformed_action = tuple([parameter] + [disjoint_args])
+        assert self.env.action_space.contains(transformed_action)
+        return transformed_action
+
+    def reverse_action(self, action):
+        pass
