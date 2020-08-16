@@ -34,28 +34,21 @@ class SimpleActionSpace(ActionWrapper):
         parameter = np.argmax(action[:num_disjoint_spaces])
         argument_space = self.env.action_space.disjoint_spaces[parameter]
 
-        try:
-            argument_sizes = [flatdim(s) for s in argument_space]
-        except TypeError:
-            argument_sizes = [flatdim(argument_space)]
-
         # Now we need to index the appropriate args for the disjoint space using the parameter
         start_index = end_index = num_disjoint_spaces
         if parameter > 0:
-            start_index += sum(self.disjoint_sizes[:parameter-1])
-            end_index += sum(self.disjoint_sizes[:parameter])
+            start_index += sum(self.disjoint_sizes[:parameter])
+        end_index = start_index + self.disjoint_sizes[parameter]
 
         # Flattened arguments for the disjoint space
-        args = []
-        for argument_size in argument_sizes:
-            # Get the ith argument for this space
-            args.append(action[start_index: start_index + argument_size])
-            start_index += argument_size
+        args = action[start_index:end_index]
 
-        # unflatten the args and concat to finish transforming the action
-        if len(argument_sizes) == 1:
-            args = args[0]
-        disjoint_args = unflatten(argument_space, args)
+        try:
+            disjoint_args = unflatten(argument_space, args)
+        except IndexError as e:
+            # Very likely the args are invalid for the wrapped space e.g. a Discrete(2) getting all zeros.
+            msg = "Failed to unflatten arguments to wrapped space of " + str(argument_space)
+            raise ValueError(msg) from e
 
         transformed_action = tuple([parameter] + [disjoint_args])
         assert self.env.action_space.contains(transformed_action)
