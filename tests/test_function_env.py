@@ -19,6 +19,7 @@ def test_function_env_preserves_function_id():
     env = FunctionalNeuralSortInterfaceEnv(k=3, number_of_functions=2, function_inputs=0, function_returns=0)
     original_obs = env.reset()
     assert original_obs['current_function'] == -1
+    assert env.action_space.contains((3, 0))
     obs, reward, done, info = env.step((3, 0))
     assert obs['current_function'] == 0
     obs, reward, done, info = env.step((3, 1))

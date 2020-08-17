@@ -25,7 +25,14 @@ For example:
 from gym.spaces import Discrete
 from sorting_gym import DiscreteParametric
 action_space = DiscreteParametric(2, ([Discrete(2), Discrete(3)]))
+action_space.sample()
+(1, 2)
+action_space.sample()
+(0, 1)
 ```
+
+A wrapper that flattens the `DiscreteParametric` action space down to a `Box` is provided for agents that
+don't support a parametric action space.
 
 In the `sorting_gym.agents.scripted` module we implement the scripted agents from the paper.
 

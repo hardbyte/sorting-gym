@@ -47,7 +47,7 @@ class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
             Instruction(1, 'MoveVar',      Tuple([Discrete(k), MultiBinary(1)]),    self.op_move_var),
             Instruction(2, 'AssignVar',    Tuple([Discrete(k), Discrete(k)]),       self.op_assign_var),
         ]
-        # super call will add the action_space attribute
+        # super call will add the DiscreteParametric action_space attribute
         super().__init__(base, k, instructions)
 
         self.nested_observation_space = Dict(

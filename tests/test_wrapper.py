@@ -34,9 +34,11 @@ def test_parametric_flat_wrap_actions():
         action = np.zeros_like(random_action)
         action[1] = 1.0
         action[5:8] = bits_to_set
-        _, result = env.action(action)
-        assert result[0] == expected_results[0]
-        assert result[1][0] == pytest.approx(expected_results[1])
+        result = env.action(action)
+
+        assert result[0] == 1
+        assert result[1] == expected_results[0]
+        assert result[2][0] == pytest.approx(expected_results[1])
 
 
 def test_parametric_flat_wrap_invalid_actions():
@@ -47,7 +49,7 @@ def test_parametric_flat_wrap_invalid_actions():
     action = np.zeros_like(random_action)
     action[1] = 1.0
     with pytest.raises(ValueError):
-        _, result = env.action(action)
+        env.action(action)
 
 
 def test_parametric_wrapped_action_step():
@@ -60,5 +62,14 @@ def test_parametric_wrapped_action_step():
     action[4] = 1.0
 
     env.step(action)
+
+
+def test_parametric_wrapped_action_samples():
+    k = 2
+    env = SimpleActionSpace(BasicNeuralSortInterfaceEnv(k=k))
+    # A random sample of the wrapped space via this method should always be valid
+    for _ in range(100):
+        action = env.action_space_sample()
+        env.step(action)
 
 

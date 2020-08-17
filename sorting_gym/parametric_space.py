@@ -24,12 +24,23 @@ class DiscreteParametric(Space):
 
     def sample(self):
         parameter_sample = self.parameter_space.sample()
-        return tuple([parameter_sample, self.disjoint_spaces[parameter_sample].sample()])
+        sample = [parameter_sample]
+        disjoint_space_sample = self.disjoint_spaces[parameter_sample].sample()
+        if isinstance(disjoint_space_sample, tuple):
+            sample.extend(disjoint_space_sample)
+        else:
+            sample.append(disjoint_space_sample)
+        return tuple(sample)
 
     def contains(self, x):
         if isinstance(x, list):
             x = tuple(x)  # Promote list to tuple for contains check
-        parameter, args = x
+        parameter, *args = x
+
+        if len(args) == 1 and isinstance(self.disjoint_spaces[parameter], Discrete):
+            # unwrap args for Discrete
+            args = args[0]
+
         return self.parameter_space.contains(parameter) and \
                self.disjoint_spaces[parameter].contains(args)
 
