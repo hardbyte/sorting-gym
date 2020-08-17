@@ -25,7 +25,14 @@ For example:
 from gym.spaces import Discrete
 from sorting_gym import DiscreteParametric
 action_space = DiscreteParametric(2, ([Discrete(2), Discrete(3)]))
+action_space.sample()
+(1, 2)
+action_space.sample()
+(0, 1)
 ```
+
+A wrapper that flattens the `DiscreteParametric` action space down to a `Box` is provided for agents that
+don't support a parametric action space.
 
 In the `sorting_gym.agents.scripted` module we implement the scripted agents from the paper.
 
@@ -40,7 +47,7 @@ RL Agents may want to consider supporting parametric/auto-regressive actions:
 - [x] Implement bubblesort/insertion sort agents as tests.
 - [x] Implement function environment.
 - [x] Implement quick sort scripted agent to test function environment.
-- [ ] Wrap the environment to expose a vanilla action space (probably MultiDiscrete)
+- [x] Wrap the environment to expose a vanilla action space (probably MultiDiscrete) 
 - [ ] Include an example solution to train an agent via RL
 - [ ] Environment rendering (at least text based, optional dependency for rendering graphically with e.g. pygame)
 - [ ] Remove the tape environment from open ai gym (used to generate longer data as agent levels up)

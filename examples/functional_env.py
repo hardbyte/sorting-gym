@@ -10,7 +10,7 @@ observation = env.reset()
 state, reward, done, info = env.step((0, 0))
 env.render()
 
-for action in range(200):
+for i in range(200):
     action = quicksort_agent(state)
     state, reward, is_done, info = env.step(action)
     print(info)
