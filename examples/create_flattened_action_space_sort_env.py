@@ -1,10 +1,10 @@
 import gym
 import sorting_gym
 from sorting_gym.envs.basic_neural_sort_interface import BasicNeuralSortInterfaceEnv
-from sorting_gym.envs.wrappers import SimpleActionSpace
+from sorting_gym.envs.wrappers import BoxActionSpaceWrapper
 
 env: BasicNeuralSortInterfaceEnv = gym.make('BasicNeuralSortInterfaceEnv-v0')
-wrapped = SimpleActionSpace(env)
+wrapped = BoxActionSpaceWrapper(env)
 
 observation = wrapped.reset()
 

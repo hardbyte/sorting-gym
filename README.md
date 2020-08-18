@@ -18,23 +18,25 @@ Importing the Python package `sorting_gym` will expose the following Gym environ
 - `FunctionalNeuralSortInterfaceEnv-v0` - extends the `BasicNeuralSortInterfaceEnv-v0` interface to include instructions for entering and exiting functions.
 
 To define the parametric action space we introduce the `DiscreteParametric(Space)` type,
-allowing environments to describe disjoint output spaces, conditioned on a discrete space.
+allowing environments to describe disjoint output spaces, conditioned on a discrete parameter space.
 For example:
 
 ```python
-from gym.spaces import Discrete
+from gym.spaces import Discrete, Tuple, MultiBinary
 from sorting_gym import DiscreteParametric
-action_space = DiscreteParametric(2, ([Discrete(2), Discrete(3)]))
+action_space = DiscreteParametric(2, ([Discrete(2), Tuple([Discrete(3), MultiBinary(3)])]))
 action_space.sample()
-(1, 2)
+(1, 2, array([0, 1, 0], dtype=int8))
 action_space.sample()
 (0, 1)
 ```
 
-A wrapper that flattens the `DiscreteParametric` action space down to a `Box` is provided for agents that
-don't support a parametric action space.
+For agents that don't support a parametric action space, we provide two wrappers (`BoxActionSpaceWrapper` and 
+`MultiDiscreteActionSpaceWrapper`) that flatten the `DiscreteParametric` action space down to a `Box` and a 
+`MultiDiscrete` respectively. 
 
-In the `sorting_gym.agents.scripted` module we implement the scripted agents from the paper.
+In the `sorting_gym.agents.scripted` module we implement the scripted agents from the paper directly using the 
+unwrapped environment.
 
 RL Agents may want to consider supporting parametric/auto-regressive actions:
 - https://docs.ray.io/en/master/rllib-models.html#autoregressive-action-distributions
@@ -47,7 +49,8 @@ RL Agents may want to consider supporting parametric/auto-regressive actions:
 - [x] Implement bubblesort/insertion sort agents as tests.
 - [x] Implement function environment.
 - [x] Implement quick sort scripted agent to test function environment.
-- [x] Wrap the environment to expose a vanilla action space.
+- [x] Wrap the environment to expose a box action space.
+- [x] Wrap the environment to expose a MultiDiscrete action space.
 - [ ] Include an example solution to train an agent via RL
 - [ ] Environment rendering (at least text based, optional dependency for rendering graphically with e.g. pygame)
 - [ ] Remove the tape environment from open ai gym (used to generate longer data as agent levels up)
@@ -76,6 +79,8 @@ pytest
 
 ```
 poetry update
+poetry version patch
+poetry lock
 poetry build
 poetry publish
 ```

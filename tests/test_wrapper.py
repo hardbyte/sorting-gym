@@ -1,24 +1,41 @@
 import numpy as np
 import pytest
-from gym.spaces import Box, flatdim
+from gym.spaces import Box, flatdim, MultiDiscrete
 
+from sorting_gym import DiscreteParametric
 from sorting_gym.envs.basic_neural_sort_interface import BasicNeuralSortInterfaceEnv
-from sorting_gym.envs.wrappers import SimpleActionSpace
+from sorting_gym.envs.wrappers import BoxActionSpaceWrapper, MultiDiscreteActionSpaceWrapper
+
+
+def test_parametric_multi_discrete_wrap():
+    for k in [4, 5, 6]:
+        env = BasicNeuralSortInterfaceEnv(k=k)
+        assert isinstance(env.action_space, DiscreteParametric)
+        assert isinstance(MultiDiscreteActionSpaceWrapper(env).action_space, MultiDiscrete)
+        assert MultiDiscreteActionSpaceWrapper(env).action_space.shape[0] == 6
+
+
+def test_parametric_multi_discrete_wrap_actions():
+    env = MultiDiscreteActionSpaceWrapper(BasicNeuralSortInterfaceEnv(k=2))
+    for _ in range(100):
+        random_action = env.action_space.sample()
+        assert env.action_space.contains(random_action)
+        env.step(random_action)
 
 
 def test_parametric_flat_wrap():
     k = 4
     env = BasicNeuralSortInterfaceEnv(k=k)
     assert flatdim(env.observation_space) == 68
-    assert isinstance(SimpleActionSpace(env).action_space, Box)
+    assert isinstance(BoxActionSpaceWrapper(env).action_space, Box)
     num_instructions = 3
     num_args = 4 * k + 1
-    assert SimpleActionSpace(env).action_space.shape[0] == num_instructions + num_args
+    assert BoxActionSpaceWrapper(env).action_space.shape[0] == num_instructions + num_args
 
 
 def test_parametric_flat_wrap_actions():
     k = 2
-    env = SimpleActionSpace(BasicNeuralSortInterfaceEnv(k=k))
+    env = BoxActionSpaceWrapper(BasicNeuralSortInterfaceEnv(k=k))
     random_action = env.action_space.sample()
 
     # The disjoint action space for action (1) is a Tuple(Discrete(2), MultiBinary(1))
@@ -44,7 +61,7 @@ def test_parametric_flat_wrap_actions():
 def test_parametric_flat_wrap_invalid_actions():
     # Test where the discrete args are all zero
     k = 2
-    env = SimpleActionSpace(BasicNeuralSortInterfaceEnv(k=k))
+    env = BoxActionSpaceWrapper(BasicNeuralSortInterfaceEnv(k=k))
     random_action = env.action_space.sample()
     action = np.zeros_like(random_action)
     action[1] = 1.0
@@ -54,7 +71,7 @@ def test_parametric_flat_wrap_invalid_actions():
 
 def test_parametric_wrapped_action_step():
     k = 2
-    env = SimpleActionSpace(BasicNeuralSortInterfaceEnv(k=k))
+    env = BoxActionSpaceWrapper(BasicNeuralSortInterfaceEnv(k=k))
     # A random sample of the wrapped space won't be valid
     action = np.zeros_like(env.action_space.sample())
     # Set action to be SwapWithNext(1)
@@ -66,7 +83,7 @@ def test_parametric_wrapped_action_step():
 
 def test_parametric_wrapped_action_samples():
     k = 2
-    env = SimpleActionSpace(BasicNeuralSortInterfaceEnv(k=k))
+    env = BoxActionSpaceWrapper(BasicNeuralSortInterfaceEnv(k=k))
     # A random sample of the wrapped space via this method should always be valid
     for _ in range(100):
         action = env.action_space_sample()

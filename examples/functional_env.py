@@ -13,7 +13,9 @@ env.render()
 for i in range(200):
     action = quicksort_agent(state)
     state, reward, is_done, info = env.step(action)
-    print(info)
+    # print(info)
 
     if is_done:
         break
+
+env.render()
