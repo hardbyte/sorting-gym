@@ -10,7 +10,14 @@ def test_parametric_space():
 
 
 def test_parametric_space_2():
-    env = FunctionalNeuralSortInterfaceEnv(k=3, number_of_functions=2, function_inputs=0, function_returns=0)
+    env = BasicNeuralSortInterfaceEnv(k=4)
+    for i in range(100):
+        sample = env.action_space.sample()
+        assert env.action_space.contains(sample)
+
+
+def test_parametric_space_3():
+    env = FunctionalNeuralSortInterfaceEnv(k=3, number_of_functions=2, function_inputs=2, function_returns=1)
     for i in range(100):
         sample = env.action_space.sample()
         assert env.action_space.contains(sample)

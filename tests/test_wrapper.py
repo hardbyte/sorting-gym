@@ -1,10 +1,11 @@
 import numpy as np
 import pytest
-from gym.spaces import Box, flatdim, MultiDiscrete
+from gym.spaces import Box, flatdim, MultiDiscrete, Discrete, Tuple, MultiBinary
 
 from sorting_gym import DiscreteParametric
 from sorting_gym.envs.basic_neural_sort_interface import BasicNeuralSortInterfaceEnv
-from sorting_gym.envs.wrappers import BoxActionSpaceWrapper, MultiDiscreteActionSpaceWrapper
+from sorting_gym.envs.wrappers import BoxActionSpaceWrapper, MultiDiscreteActionSpaceWrapper, \
+    DisjointMultiDiscreteActionSpaceWrapper, merge_discrete_spaces
 
 
 def test_parametric_multi_discrete_wrap():
@@ -90,3 +91,66 @@ def test_parametric_wrapped_action_samples():
         env.step(action)
 
 
+@pytest.mark.xfail
+def test_disjoint_parametric_wrapped_action_samples():
+    k = 2
+    env = DisjointMultiDiscreteActionSpaceWrapper(BasicNeuralSortInterfaceEnv(k=k))
+
+    # A random sample of the wrapped space via this method should always be valid
+    for _ in range(100):
+        action = env.action_space.sample()
+        env.step(action)
+
+
+def test_merge_discrete_space():
+    k = 4
+    merged_discrete_space = merge_discrete_spaces([Discrete(k)])
+
+    assert isinstance(merged_discrete_space, MultiDiscrete)
+    for i in range(k):
+        assert merged_discrete_space.contains(np.array([i], dtype=np.int64))
+    assert not merged_discrete_space.contains(np.array([k], dtype=np.int64))
+
+
+def test_merge_discrete_spaces():
+    k = 4
+    space_to_merge = [
+        Tuple([Discrete(k), Discrete(k)]),
+    ]
+
+    merged_discrete_space = merge_discrete_spaces(space_to_merge)
+
+    assert isinstance(merged_discrete_space, MultiDiscrete)
+    assert merged_discrete_space.contains(np.array([0, 0], dtype=np.int64))
+    assert merged_discrete_space.contains(np.array([0, 1], dtype=np.int64))
+    assert merged_discrete_space.contains(np.array([2, 2], dtype=np.int64))
+    assert merged_discrete_space.contains(np.array([3, 3], dtype=np.int64))
+    assert not merged_discrete_space.contains(np.array([4, 4], dtype=np.int64))
+
+
+def test_merge_discrete_spaces_flat():
+    k = 4
+    space_to_merge = [
+        Discrete(k), Discrete(k),
+    ]
+
+    merged_discrete_space = merge_discrete_spaces(space_to_merge)
+
+    assert isinstance(merged_discrete_space, MultiDiscrete)
+    assert merged_discrete_space.contains(np.array([0, 0], dtype=np.int64))
+    assert merged_discrete_space.contains(np.array([0, 1], dtype=np.int64))
+    assert merged_discrete_space.contains(np.array([2, 2], dtype=np.int64))
+    assert merged_discrete_space.contains(np.array([3, 3], dtype=np.int64))
+    assert not merged_discrete_space.contains(np.array([4, 4], dtype=np.int64))
+
+
+def test_merge_discrete_and_multibinary():
+    space_to_merge = [Tuple([Discrete(4), MultiBinary(1)])]
+    merged_discrete_space = merge_discrete_spaces(space_to_merge)
+    assert isinstance(merged_discrete_space, MultiDiscrete)
+    assert merged_discrete_space.contains(np.array([0, 0], dtype=np.int64))
+    assert merged_discrete_space.contains(np.array([3, 1], dtype=np.int64))
+    assert not merged_discrete_space.contains(np.array([3, 2], dtype=np.int64))
+    assert not merged_discrete_space.contains(np.array([4, 1], dtype=np.int64))
+
+    merged_discrete_space.sample()

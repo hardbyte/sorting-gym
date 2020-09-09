@@ -50,11 +50,13 @@ RL Agents may want to consider supporting parametric/auto-regressive actions:
 - [x] Implement function environment.
 - [x] Implement quick sort scripted agent to test function environment.
 - [x] Wrap the environment to expose a box action space.
-- [x] Wrap the environment to expose a MultiDiscrete action space.
+- [x] Wrap the environment to expose a single MultiDiscrete action space.
+- [ ] Wrap the environment to expose a Parametric action space where each disjoint space is a
+      MultiDiscrete action space. WIP in `DisjointMultiDiscreteActionSpaceWrapper`
 - [ ] Include an example solution to train an agent via RL
 - [ ] Environment rendering (at least text based, optional dependency for rendering graphically with e.g. pygame)
-- [ ] Remove the tape environment from open ai gym (used to generate longer data as agent levels up)
-- [x] Housekeeping - license and ci
+- [ ] Remove the open ai gym tape environment from base env (used to generate longer data as agent levels up)
+
 
 ### Ideas to take it further:
 

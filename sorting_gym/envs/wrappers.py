@@ -6,7 +6,16 @@ from gym.spaces import flatten_space, flatdim, unflatten, flatten
 
 from sorting_gym import DiscreteParametric
 
+
 def merge_discrete_spaces(input_spaces: List[Union[spaces.Discrete, spaces.Tuple, spaces.MultiBinary]]) -> spaces.MultiDiscrete:
+    """
+    Merge nested Discrete, and MultiBinary spaces into a single MultiDiscrete space
+
+    TODO could also add support for MultiDiscrete
+
+    :param input_spaces:
+    :return:
+    """
     return spaces.MultiDiscrete(_discrete_dims(input_spaces))
 
 
@@ -25,6 +34,12 @@ def _discrete_dims(input_spaces: Union[spaces.Discrete, spaces.Tuple, spaces.Mul
 
 
 def _discrete_unflatten(argument_space, args):
+    """
+
+    :param argument_space:
+    :param args:
+    :return:
+    """
     res = []
     args = list(args)
     while len(args) > 0:
@@ -38,16 +53,67 @@ def _discrete_unflatten(argument_space, args):
             del args[:argument_space.shape[0]]
         elif isinstance(argument_space, spaces.Tuple):
             _num_tuple_args = _discrete_dims(argument_space.spaces)
-            res.append(args[:_num_tuple_args])
-            del args[:_num_tuple_args]
+            res.append(args[:len(_num_tuple_args)])
+            del args[:len(_num_tuple_args)]
         else:
             raise NotImplemented
 
     return res
 
 
+class DisjointMultiDiscreteActionSpaceWrapper(ActionWrapper):
+    """Expose a MultiDiscrete action space for each disjoint action space instead of a more complex nested space.
+
+    Wrapping a discrete parametric space with the following disjoint spaces:
+
+        Discrete(k),
+        Tuple([Discrete(k), MultiBinary(1)]),
+        Tuple([Discrete(k), Discrete(k)]),
+
+    should result in output spaces of:
+
+        MultiDiscrete([k]),
+        MultiDiscrete([k, 2]),
+        MultiDiscrete([k, k]
+
+    """
+
+    def __init__(self, env):
+        assert isinstance(env.action_space, DiscreteParametric), (
+            "expected DiscreteParametric action space, got {}".format(type(env.action_space)))
+        super(DisjointMultiDiscreteActionSpaceWrapper, self).__init__(env)
+        self.parametric_space: DiscreteParametric = env.action_space
+
+        # Construct the modified disjoint spaces
+        self.disjoint_action_spaces = [merge_discrete_spaces([s]) for s in self.parametric_space.disjoint_spaces]
+        self.action_space = DiscreteParametric(env.action_space.parameter_space.n, self.disjoint_action_spaces)
+
+    def action(self, action):
+        """
+        Convert an action using the merged MultiDiscrete disjoint space into a DiscreteParametric action.
+
+        """
+        assert self.action_space.contains(action), "Given action is not valid in this action space"
+        # Get the discrete parameter value
+        parameter = action[0]
+        # The args should be a valid MultiDiscrete sample for the given parameter. Note
+        # MultiDiscrete samples are ndarrays of dtype np.int64.
+        args = action[1:]
+        assert self.disjoint_action_spaces[parameter].contains(np.array(args, dtype=np.int64))
+
+        # TODO the args need to be converted back into their original nested form
+        #
+        output_space = self.env.action_space.disjoint_spaces[parameter]
+
+        raise NotImplemented
+
+        assert self.env.action_space.contains(transformed_action)
+        return tuple(transformed_action)
+
+
 class MultiDiscreteActionSpaceWrapper(ActionWrapper):
-    """Expose a MultiDiscrete action space instead of a parametric action space.
+    """Expose a single MultiDiscrete action space instead of a DiscreteParametric action space.
+
 
     """
     def __init__(self, env):
@@ -57,14 +123,12 @@ class MultiDiscreteActionSpaceWrapper(ActionWrapper):
 
         # Construct a space from the parametric space's parameter_space and disjoint spaces
         self.action_space = merge_discrete_spaces([parametric_space.parameter_space] + list(parametric_space.disjoint_spaces))
-        #self.disjoint_sizes = self.action_space.nvec[1:]
 
     def action(self, action):
         """Convert a MultiDiscrete action into a DiscreteParametric action."""
         # Get the discrete parameter value
 
         parameter = np.argmax(action[0])
-
         argument_space = self.env.action_space[parameter]
 
         # Convert the appropriate args for the disjoint space using the parameter

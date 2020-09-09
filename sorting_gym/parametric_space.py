@@ -1,6 +1,6 @@
 from gym import Space
 from gym.spaces import Discrete
-
+import numpy as np
 
 class DiscreteParametric(Space):
     """
@@ -26,11 +26,16 @@ class DiscreteParametric(Space):
         parameter_sample = self.parameter_space.sample()
         sample = [parameter_sample]
         disjoint_space_sample = self.disjoint_spaces[parameter_sample].sample()
-        if isinstance(disjoint_space_sample, tuple):
+        if isinstance(disjoint_space_sample, np.ndarray):
+            # MultiDiscrete samples are returned as ndarrays
+            disjoint_space_sample = disjoint_space_sample.tolist()
+        if isinstance(disjoint_space_sample, (tuple, list)):
             sample.extend(disjoint_space_sample)
         else:
             sample.append(disjoint_space_sample)
-        return tuple(sample)
+        sample = tuple(sample)
+        assert self.contains(sample)
+        return sample
 
     def contains(self, x):
         if isinstance(x, list):
