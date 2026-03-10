@@ -9,12 +9,7 @@ from sorting_gym import DiscreteParametric
 
 def merge_discrete_spaces(input_spaces: List[Union[spaces.Discrete, spaces.Tuple, spaces.MultiBinary]]) -> spaces.MultiDiscrete:
     """
-    Merge nested Discrete, and MultiBinary spaces into a single MultiDiscrete space
-
-    TODO could also add support for MultiDiscrete
-
-    :param input_spaces:
-    :return:
+    Merge nested Discrete, MultiBinary, and MultiDiscrete spaces into a single MultiDiscrete space.
     """
     return spaces.MultiDiscrete(_discrete_dims(input_spaces))
 
@@ -61,6 +56,33 @@ def _discrete_unflatten(argument_space, args):
     return res
 
 
+def _unflatten_to_space(space, flat_args):
+    """Recursively reconstruct a nested space value from flat integer args.
+
+    Returns (value, remaining_args) where value is suitable for space.contains().
+    """
+    flat_args = list(flat_args)
+    if isinstance(space, spaces.Discrete):
+        return int(flat_args.pop(0)), flat_args
+    elif isinstance(space, spaces.MultiBinary):
+        n = space.n if isinstance(space.n, int) else int(np.prod(space.n))
+        val = np.array(flat_args[:n], dtype=np.int8)
+        return val, flat_args[n:]
+    elif isinstance(space, spaces.MultiDiscrete):
+        n = len(space.nvec)
+        val = np.array(flat_args[:n], dtype=np.int64)
+        return val, flat_args[n:]
+    elif isinstance(space, spaces.Tuple):
+        result = []
+        remaining = flat_args
+        for sub_space in space.spaces:
+            val, remaining = _unflatten_to_space(sub_space, remaining)
+            result.append(val)
+        return tuple(result), remaining
+    else:
+        raise NotImplementedError(f"Unsupported space type: {type(space)}")
+
+
 class DisjointMultiDiscreteActionSpaceWrapper(ActionWrapper):
     """Expose a MultiDiscrete action space for each disjoint action space instead of a more complex nested space.
 
@@ -101,11 +123,17 @@ class DisjointMultiDiscreteActionSpaceWrapper(ActionWrapper):
         args = action[1:]
         assert self.disjoint_action_spaces[parameter].contains(np.array(args, dtype=np.int64))
 
-        # TODO the args need to be converted back into their original nested form
-        #
+        # Convert flat args back into the original nested form
         output_space = self.env.action_space.disjoint_spaces[parameter]
+        nested_args, remaining = _unflatten_to_space(output_space, args)
+        assert len(remaining) == 0, f"Unexpected remaining args: {remaining}"
 
-        raise NotImplementedError
+        # Build the final action tuple
+        transformed_action = [parameter]
+        if isinstance(nested_args, tuple):
+            transformed_action.extend(nested_args)
+        else:
+            transformed_action.append(nested_args)
 
         assert self.env.action_space.contains(transformed_action)
         return tuple(transformed_action)

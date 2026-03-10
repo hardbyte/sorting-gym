@@ -91,7 +91,6 @@ def test_parametric_wrapped_action_samples():
         env.step(action)
 
 
-@pytest.mark.xfail
 def test_disjoint_parametric_wrapped_action_samples():
     k = 2
     env = DisjointMultiDiscreteActionSpaceWrapper(BasicNeuralSortInterfaceEnv(k=k))
