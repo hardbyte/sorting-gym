@@ -1,4 +1,4 @@
-from gym.envs.registration import register
+from gymnasium.envs.registration import register
 from sorting_gym.parametric_space import DiscreteParametric
 
 register(

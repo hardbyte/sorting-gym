@@ -1,9 +1,9 @@
-import gym
+import gymnasium
 import sorting_gym
 from sorting_gym.envs.tape import SortTapeAlgorithmicEnv
 
-env: SortTapeAlgorithmicEnv = gym.make('SortTapeAlgorithmicEnv-v0').unwrapped
-observation = env.reset()
-env.render()
+env: SortTapeAlgorithmicEnv = gymnasium.make('SortTapeAlgorithmicEnv-v0').unwrapped
+observation, info = env.reset()
 
-state, reward, done, info = env.step((0, 0, 0))
+print(f"Input data: {env.input_data}")
+print(f"Target: {env.target}")

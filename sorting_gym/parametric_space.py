@@ -1,6 +1,6 @@
-from gym import Space
-from gym.spaces import Discrete
+from gymnasium.spaces import Discrete, Space
 import numpy as np
+
 
 class DiscreteParametric(Space):
     """
@@ -15,14 +15,14 @@ class DiscreteParametric(Space):
         self.parameter_space = Discrete(n)
         self.disjoint_spaces = spaces
         for space in spaces:
-            assert isinstance(space, Space), "Elements of the DiscreteParametric must be instances of gym.Space"
-        super().__init__(None, None)
+            assert isinstance(space, Space), "Elements of the DiscreteParametric must be instances of gymnasium.Space"
+        super().__init__()
 
     def seed(self, seed=None):
         self.parameter_space.seed(seed)
         [space.seed(seed) for space in self.disjoint_spaces]
 
-    def sample(self):
+    def sample(self, mask=None):
         parameter_sample = self.parameter_space.sample()
         sample = [parameter_sample]
         disjoint_space_sample = self.disjoint_spaces[parameter_sample].sample()
@@ -61,8 +61,7 @@ class DiscreteParametric(Space):
         return res
 
     def from_jsonable(self, sample_n):
-        raise NotImplemented("Got bored")
-        #return [sample for sample in zip(*[space.from_jsonable(sample_n[i]) for i, space in enumerate(self.spaces)])]
+        raise NotImplementedError("Got bored")
 
     def __getitem__(self, index):
         return self.disjoint_spaces[index]

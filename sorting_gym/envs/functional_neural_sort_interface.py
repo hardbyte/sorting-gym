@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
 import numpy as np
-from gym.spaces import Tuple, Discrete, MultiBinary, Dict
+from gymnasium.spaces import Tuple, Discrete, MultiBinary, Dict
 
 from sorting_gym.envs.basic_neural_sort_interface import Instruction
 from sorting_gym.envs.sort_interface_base import NeuralSortInterfaceEnv
@@ -122,12 +122,13 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
             ]))
         ])
 
-    def reset(self):
-        super().reset()
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed)
         self.current_function = -1
         self.previous_action = -1
         self.call_stack = []
-        return self._get_obs()
+        obs = self._get_obs()
+        return obs, {}
 
     def op_function_call(self, args):
         """
@@ -221,19 +222,20 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         self.dispatch(instruction, args)
 
         # Check for solved, calculate reward
-        done = self.A == self.tape_env.target
-        if done:
+        terminated = self.A == self.tape_env.target
+        if terminated:
             # So the strings get longer
             self.tape_env.episode_total_reward = len(self.A)
         reward = -1
+        truncated = False
         info_dict = {'data': self.A, 'interface': list(self.v), 'function': self.current_function}
 
         self.previous_action = instruction
 
         self._encode_args(instruction, args)
-        return self._get_obs(), reward, done, info_dict
+        return self._get_obs(), reward, terminated, truncated, info_dict
 
-    def render(self, mode='human'):
+    def render(self):
         print(f"""Data: {self.A}
 Interface: {list(self.v)}
 Current Function: {self.current_function}

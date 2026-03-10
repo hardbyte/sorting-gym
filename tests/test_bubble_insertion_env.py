@@ -1,5 +1,5 @@
 import pytest
-from gym.spaces import flatten, flatdim
+from gymnasium.spaces import flatten, flatdim
 
 from sorting_gym.agents.scripted import bubble_sort_agent, insertion_sort_agent
 from sorting_gym.envs.basic_neural_sort_interface import BasicNeuralSortInterfaceEnv
@@ -13,7 +13,8 @@ def test_observation_size():
 
 def test_reset_gives_valid_observation():
     env = BasicNeuralSortInterfaceEnv(k=4)
-    obs = flatten(env.nested_observation_space, env.reset())
+    obs, _info = env.reset()
+    obs = flatten(env.nested_observation_space, obs)
     assert obs.shape[0] == 68
 
 

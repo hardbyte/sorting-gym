@@ -1,8 +1,8 @@
 from typing import Union, List
 
 import numpy as np
-from gym import spaces, ActionWrapper
-from gym.spaces import flatten_space, flatdim, unflatten, flatten
+from gymnasium import spaces, ActionWrapper
+from gymnasium.spaces import flatten_space, flatdim, unflatten, flatten
 
 from sorting_gym import DiscreteParametric
 
@@ -56,7 +56,7 @@ def _discrete_unflatten(argument_space, args):
             res.append(args[:len(_num_tuple_args)])
             del args[:len(_num_tuple_args)]
         else:
-            raise NotImplemented
+            raise NotImplementedError
 
     return res
 
@@ -105,7 +105,7 @@ class DisjointMultiDiscreteActionSpaceWrapper(ActionWrapper):
         #
         output_space = self.env.action_space.disjoint_spaces[parameter]
 
-        raise NotImplemented
+        raise NotImplementedError
 
         assert self.env.action_space.contains(transformed_action)
         return tuple(transformed_action)

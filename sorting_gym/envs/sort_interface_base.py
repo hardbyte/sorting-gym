@@ -1,6 +1,5 @@
 import numpy as np
-from gym import Env
-from gym.spaces import MultiDiscrete
+from gymnasium import Env
 
 from sorting_gym import DiscreteParametric
 from sorting_gym.envs.tape import SortTapeAlgorithmicEnv
@@ -26,13 +25,14 @@ class NeuralSortInterfaceEnv(Env):
         self.tape_env = SortTapeAlgorithmicEnv(base=base, starting_min_length=4)
 
         # Action space is variable - conditioned on the instruction selected
-        # This isn't really well supported by the OpenAI Gym api so we've
+        # This isn't really well supported by the Gymnasium api so we've
         # made our own `DiscreteParametric` space class.
         self.action_space = DiscreteParametric(
             len(instructions),
             [instruction.argument_space for instruction in instructions])
 
-    def reset(self):
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed)
         self.tape_env.reset()
         self.A = self.tape_env.input_data
         # Reset pointers to low and high
