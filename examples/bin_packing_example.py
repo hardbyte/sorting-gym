@@ -1,5 +1,3 @@
-import gymnasium
-import sorting_gym
 from sorting_gym.envs.bin_packing import BinPackingEnv
 from sorting_gym.agents.scripted import first_fit_decreasing_agent
 

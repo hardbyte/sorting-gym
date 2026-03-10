@@ -1,7 +1,7 @@
 import pytest
 from gymnasium.spaces import flatten
 
-from sorting_gym.agents.scripted import bubble_sort_agent, insertion_sort_agent, quicksort_agent
+from sorting_gym.agents.scripted import bubble_sort_agent, quicksort_agent
 from sorting_gym.envs.functional_neural_sort_interface import FunctionalNeuralSortInterfaceEnv
 from tests.util import _test_sort_agent
 
@@ -40,7 +40,7 @@ def test_function_env_can_pass_through_arg():
     """
     env = FunctionalNeuralSortInterfaceEnv(k=3, number_of_functions=1, function_inputs=1, function_returns=1)
     env.reset()
-    n = len(env.A) - 1
+    n = len(env.A) - 1  # noqa: F841
     assert env.current_function == -1
     assert env.v[1] == n
     assert env.v[2] == 0
@@ -70,7 +70,7 @@ def test_function_env_swap_args():
     """
     env = FunctionalNeuralSortInterfaceEnv(k=3, number_of_functions=1, function_inputs=2, function_returns=2)
     env.reset()
-    n = len(env.A) - 1
+    n = len(env.A) - 1  # noqa: F841
     assert env.current_function == -1
     env.v[1] = 1
     env.v[2] = 2
@@ -110,7 +110,7 @@ def test_function_env_swap_args_in_call():
     """
     env = FunctionalNeuralSortInterfaceEnv(k=3, number_of_functions=1, function_inputs=2, function_returns=2)
     env.reset()
-    n = len(env.A) - 1
+    n = len(env.A) - 1  # noqa: F841
     assert env.current_function == -1
     env.v[1] = 1
     env.v[2] = 2

@@ -1,5 +1,5 @@
 from gymnasium.envs.registration import register
-from sorting_gym.parametric_space import DiscreteParametric
+from sorting_gym.parametric_space import DiscreteParametric as DiscreteParametric
 
 register(
     id='SortTapeAlgorithmicEnv-v0',

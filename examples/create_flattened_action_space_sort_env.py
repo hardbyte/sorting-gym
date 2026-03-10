@@ -1,5 +1,4 @@
 import gymnasium
-import sorting_gym
 from sorting_gym.envs.basic_neural_sort_interface import BasicNeuralSortInterfaceEnv
 from sorting_gym.envs.wrappers import BoxActionSpaceWrapper
 

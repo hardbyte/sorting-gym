@@ -1,5 +1,3 @@
-import numpy as np
-import pytest
 from gymnasium.spaces import flatdim
 
 from sorting_gym.envs.knapsack import KnapsackEnv
@@ -51,7 +49,7 @@ def test_knapsack_capacity_respected():
     env = KnapsackEnv(k=4, base=10, starting_min_items=5, capacity_ratio=0.3)
     env.reset()
 
-    initial_capacity = env.remaining_capacity
+    _ = env.remaining_capacity
     # Try to select every item by moving pointer and selecting
     for _ in range(env.num_items * 2):
         env.step((0, 0))  # Select at pointer 0

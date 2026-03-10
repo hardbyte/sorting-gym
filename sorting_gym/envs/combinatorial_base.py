@@ -10,10 +10,9 @@ from collections import OrderedDict
 
 import gymnasium as gym
 import numpy as np
-from gymnasium.spaces import Discrete, Dict, MultiBinary
+from gymnasium.spaces import Dict, MultiBinary
 
 from sorting_gym import DiscreteParametric
-from sorting_gym.envs.basic_neural_sort_interface import Instruction
 
 
 class NeuralCombinatorialInterfaceEnv(gym.Env):

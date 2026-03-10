@@ -1,5 +1,3 @@
-import gymnasium
-import sorting_gym
 from sorting_gym.envs.knapsack import KnapsackEnv
 from sorting_gym.agents.scripted import greedy_knapsack_agent
 

@@ -1,5 +1,3 @@
-import numpy as np
-import pytest
 from gymnasium.spaces import flatdim
 
 from sorting_gym.envs.bin_packing import BinPackingEnv

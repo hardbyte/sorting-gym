@@ -88,7 +88,7 @@ def Swap(a, b):
 
 
 def bubble_sort_agent(obs, k):
-    i, j, l = 0, 1, 2
+    i, j, el = 0, 1, 2
     if v_less_than(obs, i, j, k):
         if data_neighbour_greater(obs, i, +1):
             return SwapWithNext(i)
@@ -97,7 +97,7 @@ def bubble_sort_agent(obs, k):
     elif v_equals(obs, i, j, k):
         return MoveVar(j, -1)
     else:
-        return AssignVar(i, l)
+        return AssignVar(i, el)
 
 
 def insertion_sort_agent(obs, k):
@@ -212,7 +212,7 @@ def quicksort_agent(obs, k=4):
     """
     function_id = obs['current_function']
     if function_id == -1:
-        i, j, low, high = 0, 1, 2, 3
+        _i, _j, low, high = 0, 1, 2, 3
         return FunctionCall(0, [low, high], [low, high], [high])
     elif function_id == 0:
         return _quicksort_f(obs)

@@ -1,5 +1,4 @@
 import gymnasium
-import sorting_gym
 from sorting_gym.envs.tape import SortTapeAlgorithmicEnv
 
 env: SortTapeAlgorithmicEnv = gymnasium.make('SortTapeAlgorithmicEnv-v0').unwrapped

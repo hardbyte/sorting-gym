@@ -1,5 +1,3 @@
-import gymnasium
-import sorting_gym
 from sorting_gym.envs.functional_neural_sort_interface import FunctionalNeuralSortInterfaceEnv
 from sorting_gym.agents.scripted import quicksort_agent
 
