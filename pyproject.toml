@@ -19,6 +19,11 @@ dependencies = [
 Repository = "https://github.com/hardbyte/sorting-gym"
 "Bug Tracker" = "https://github.com/hardbyte/sorting-gym/issues"
 
+[project.optional-dependencies]
+examples = [
+    "stable-baselines3>=2.7.1",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

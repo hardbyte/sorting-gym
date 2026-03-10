@@ -155,9 +155,7 @@ class MultiDiscreteActionSpaceWrapper(ActionWrapper):
     def action(self, action):
         """Convert a MultiDiscrete action into a DiscreteParametric action."""
         # Get the discrete parameter value
-
         parameter = np.argmax(action[0])
-        argument_space = self.env.action_space[parameter]
 
         # Convert the appropriate args for the disjoint space using the parameter
         start_index = 1 + len(_discrete_dims(self.env.action_space.disjoint_spaces[:parameter]))
@@ -166,14 +164,17 @@ class MultiDiscreteActionSpaceWrapper(ActionWrapper):
         # Our discrete arguments for the disjoint space
         args = action[start_index:end_index]
 
-        disjoint_args = _discrete_unflatten(argument_space, args)
+        # Reconstruct the original nested form from flat MultiDiscrete args
+        output_space = self.env.action_space.disjoint_spaces[parameter]
+        nested_args, remaining = _unflatten_to_space(output_space, args)
+        assert len(remaining) == 0, f"Unexpected remaining args: {remaining}"
 
-        # Make the final flat tuple
+        # Build the final action tuple
         transformed_action = [parameter]
-        if isinstance(disjoint_args, (tuple, list)):
-            transformed_action.extend(disjoint_args)
+        if isinstance(nested_args, tuple):
+            transformed_action.extend(nested_args)
         else:
-            transformed_action.append(disjoint_args)
+            transformed_action.append(nested_args)
 
         assert self.env.action_space.contains(transformed_action)
         return tuple(transformed_action)
