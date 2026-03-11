@@ -133,17 +133,22 @@ arrays (reward of -1, meaning sorted in a single step on many episodes).
 
 ### Visualizing Training Progress
 
-Generate an animated GIF showing the agent's sorting strategy at different training stages:
+Generate animated GIFs showing the agent's strategy evolving during training:
 
 ```bash
 pip install stable-baselines3 pillow
-python examples/visualize_training.py --timesteps 200000 --output docs/sorting_progress.gif
+python examples/visualize_training.py                    # Both envs
+python examples/visualize_training.py --env sort         # Sorting only (200k steps)
+python examples/visualize_training.py --env knapsack     # Knapsack only (100k steps)
 ```
+
+**Sorting** — the agent learns to swap elements into sorted order using pointer-based instructions:
 
 ![Sorting agent training progress](docs/sorting_progress.gif)
 
-The visualization shows the array state, pointer positions (v0, v1, v2), and target at each step.
-An untrained agent takes random actions, while the trained agent learns to swap elements into place efficiently.
+**Knapsack** — the agent learns to select high-value items without exceeding capacity:
+
+![Knapsack agent training progress](docs/knapsack_progress.gif)
 
 ## Development
 

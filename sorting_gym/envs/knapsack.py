@@ -149,9 +149,42 @@ class KnapsackEnv(NeuralCombinatorialInterfaceEnv):
         }
         return self._get_obs(), reward, terminated, truncated, info
 
-    def render(self):
-        selected_items = [i for i in range(self.num_items) if self.selected[i]]
-        print(f"Items: {self.items}")
-        print(f"Capacity: {self.capacity}, Remaining: {self.remaining_capacity}")
-        print(f"Selected: {selected_items}, Value: {self.total_value}")
-        print(f"Pointers: {list(self.v)}")
+    def render(self, mode="human"):
+        """Render current state.
+
+        mode='human': print to stdout.
+        mode='rgb_array': return a text-art string for frame capture.
+        """
+        if mode == "human":
+            print(self.render(mode="rgb_array"))
+            return None
+
+        n = self.num_items
+        lines = []
+
+        # Capacity bar
+        used = self.capacity - self.remaining_capacity
+        cap_pct = used / max(self.capacity, 1)
+        bar_len = 30
+        filled = int(cap_pct * bar_len)
+        cap_bar = "\u2588" * filled + "\u2591" * (bar_len - filled)
+        lines.append(f"Capacity: [{cap_bar}] {used}/{self.capacity}")
+        lines.append(f"Value collected: {self.total_value}")
+        lines.append("")
+
+        # Item table
+        lines.append("  #  W   V  V/W  Status   Ptrs")
+        lines.append(" " + "\u2500" * 36)
+        for i in range(n):
+            w, v = self.items[i]
+            ratio = v / max(w, 1)
+            sel = "\u2713 sel" if self.selected[i] else "     "
+            fits = "" if self.selected[i] else ("\u2717" if w > self.remaining_capacity else " ")
+            ptrs = ",".join(f"v{p}" for p in range(self.k) if self.v[p] == i)
+            marker = "\u25b6" if ptrs else " "
+            lines.append(f" {marker}{i:2d} {w:3d} {v:3d} {ratio:4.1f}  {sel}{fits}  {ptrs}")
+
+        lines.append(" " + "\u2500" * 36)
+        if self._finished:
+            lines.append(" DONE!")
+        return "\n".join(lines)
