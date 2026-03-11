@@ -151,7 +151,8 @@ class JobShopSchedulingEnv(NeuralCombinatorialInterfaceEnv):
         truncated = False
         reward = -1
         if terminated:
-            reward += -self.makespan
+            num_unscheduled = int((~self.scheduled).sum())
+            reward += -self.makespan - num_unscheduled * self.base
 
         self.episode_total_reward += reward
         if terminated:

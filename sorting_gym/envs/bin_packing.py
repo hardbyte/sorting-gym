@@ -144,7 +144,8 @@ class BinPackingEnv(NeuralCombinatorialInterfaceEnv):
         reward = -1
         if terminated:
             # Reward is negative of bins used (minimize)
-            reward += -self.num_bins
+            num_unassigned = int((self.assignments < 0).sum())
+            reward += -self.num_bins - num_unassigned * self.base
 
         self.episode_total_reward += reward
         if terminated:
