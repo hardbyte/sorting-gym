@@ -155,7 +155,7 @@ class MultiDiscreteActionSpaceWrapper(ActionWrapper):
     def action(self, action):
         """Convert a MultiDiscrete action into a DiscreteParametric action."""
         # Get the discrete parameter value
-        parameter = np.argmax(action[0])
+        parameter = int(action[0])
 
         # Convert the appropriate args for the disjoint space using the parameter
         start_index = 1 + len(_discrete_dims(self.env.action_space.disjoint_spaces[:parameter]))
