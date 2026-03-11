@@ -140,5 +140,45 @@ class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         info_dict = {'data': self.A, 'interface': self.v}
         return self._get_obs(), reward, terminated, truncated, info_dict
 
-    def render(self):
-        print(f"Data: {self.A}\nInterface: {list(self.v)}")
+    def render(self, mode="human"):
+        """Render current state.
+
+        mode='human': print to stdout.
+        mode='rgb_array': return a text-art string suitable for frame capture.
+        """
+        if mode == "human":
+            print(self.render(mode="rgb_array"))
+            return None
+
+        n = len(self.A)
+        max_val = max(self.A) if self.A else 1
+        target = self.tape_env.target
+
+        # Build pointer label row
+        pointer_labels = ["  "] * n
+        for pi in range(self.k):
+            idx = self.v[pi]
+            label = f"v{pi}"
+            if pointer_labels[idx] == "  ":
+                pointer_labels[idx] = label
+            else:
+                pointer_labels[idx] += f",{label}"
+
+        # Array bar chart
+        lines = []
+        lines.append("Array: [" + " ".join(f"{v:2d}" for v in self.A) + "]"
+                      + "  Target: [" + " ".join(f"{v:2d}" for v in target) + "]")
+        bar_width = 2
+        for row in range(max_val, 0, -1):
+            cells = []
+            for col in range(n):
+                if self.A[col] >= row:
+                    cells.append("\u2588" * bar_width)
+                else:
+                    cells.append(" " * bar_width)
+            lines.append(" ".join(cells))
+        # Pointer row
+        lines.append(" ".join(f"{p:>{bar_width}s}" for p in pointer_labels))
+        sorted_marker = " SORTED!" if self.A == target else ""
+        lines.append(f"{'─' * (3 * n)}{sorted_marker}")
+        return "\n".join(lines)

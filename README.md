@@ -99,7 +99,7 @@ RL Agents may want to consider supporting parametric/auto-regressive actions:
 - [x] 1D Bin Packing environment with first-fit-decreasing scripted agent
 - [x] Job Shop Scheduling environment with SPT scripted agent
 - [x] Include an example solution to train an agent via RL
-- [ ] Environment rendering (at least text based, optional dependency for rendering graphically with e.g. pygame)
+- [x] Environment rendering (text-based `render()` + animated GIF visualization script)
 
 
 ### Ideas to take it further:
@@ -130,6 +130,20 @@ observation into a 1-D vector.
 
 With a 256×256 MLP and 200k timesteps the sorting agent reaches near-optimal performance on small
 arrays (reward of -1, meaning sorted in a single step on many episodes).
+
+### Visualizing Training Progress
+
+Generate an animated GIF showing the agent's sorting strategy at different training stages:
+
+```bash
+pip install stable-baselines3 pillow
+python examples/visualize_training.py --timesteps 200000 --output docs/sorting_progress.gif
+```
+
+![Sorting agent training progress](docs/sorting_progress.gif)
+
+The visualization shows the array state, pointer positions (v0, v1, v2), and target at each step.
+An untrained agent takes random actions, while the trained agent learns to swap elements into place efficiently.
 
 ## Development
 
