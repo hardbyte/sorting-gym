@@ -239,6 +239,7 @@ ENV_CONFIGS = {
         ),
         "default_timesteps": 100_000,
         "output": "docs/knapsack_progress.gif",
+        "frame_duration_ms": 600,
     },
 }
 
@@ -285,7 +286,7 @@ def train_and_visualize(env_name, timesteps=None, output_override=None):
             stages.append((label, cb.snapshots[m]))
 
     os.makedirs(os.path.dirname(output) or ".", exist_ok=True)
-    build_gif(stages, output, frame_duration_ms=350)
+    build_gif(stages, output, frame_duration_ms=config.get("frame_duration_ms", 350))
 
 
 def main():
