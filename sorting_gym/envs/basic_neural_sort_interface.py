@@ -2,8 +2,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Callable
 
-from gym import Space
-from gym.spaces import Discrete, Dict, MultiBinary, Tuple
+from gymnasium.spaces import Discrete, Dict, MultiBinary, Space, Tuple
 import numpy as np
 
 from sorting_gym.envs.sort_interface_base import NeuralSortInterfaceEnv
@@ -96,9 +95,10 @@ class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         return OrderedDict([('neighbour_view_comparisons', neighbour_comparisons.flatten()),
                             ('pairwise_view_comparisons', pairwise_comparisons)])
 
-    def reset(self):
-        super().reset()
-        return self._get_obs()
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed)
+        obs = self._get_obs()
+        return obs, {}
 
     def op_swap_with_next(self, args):
         # SwapWithNext(i)
@@ -131,15 +131,54 @@ class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         self.dispatch(instruction, args)
 
         # Check for solved, calculate reward
-        done = self.A == self.tape_env.target
-        if done:
+        terminated = self.A == self.tape_env.target
+        if terminated:
             # So the strings get longer
             self.tape_env.episode_total_reward = len(self.A)
         reward = -1
+        truncated = False
         info_dict = {'data': self.A, 'interface': self.v}
-        return self._get_obs(), reward, done, info_dict
+        return self._get_obs(), reward, terminated, truncated, info_dict
 
-    def render(self, mode='human'):
-        return self.tape_env.render(mode)
+    def render(self, mode="human"):
+        """Render current state.
 
+        mode='human': print to stdout.
+        mode='rgb_array': return a text-art string suitable for frame capture.
+        """
+        if mode == "human":
+            print(self.render(mode="rgb_array"))
+            return None
 
+        n = len(self.A)
+        max_val = max(self.A) if self.A else 1
+        target = self.tape_env.target
+
+        # Build pointer label row
+        pointer_labels = ["  "] * n
+        for pi in range(self.k):
+            idx = self.v[pi]
+            label = f"v{pi}"
+            if pointer_labels[idx] == "  ":
+                pointer_labels[idx] = label
+            else:
+                pointer_labels[idx] += f",{label}"
+
+        # Array bar chart
+        lines = []
+        lines.append("Array: [" + " ".join(f"{v:2d}" for v in self.A) + "]"
+                      + "  Target: [" + " ".join(f"{v:2d}" for v in target) + "]")
+        bar_width = 2
+        for row in range(max_val, 0, -1):
+            cells = []
+            for col in range(n):
+                if self.A[col] >= row:
+                    cells.append("\u2588" * bar_width)
+                else:
+                    cells.append(" " * bar_width)
+            lines.append(" ".join(cells))
+        # Pointer row
+        lines.append(" ".join(f"{p:>{bar_width}s}" for p in pointer_labels))
+        sorted_marker = " SORTED!" if self.A == target else ""
+        lines.append(f"{'─' * (3 * n)}{sorted_marker}")
+        return "\n".join(lines)

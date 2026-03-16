@@ -1,5 +1,5 @@
-from gym.envs.registration import register
-from sorting_gym.parametric_space import DiscreteParametric
+from gymnasium.envs.registration import register
+from sorting_gym.parametric_space import DiscreteParametric as DiscreteParametric
 
 register(
     id='SortTapeAlgorithmicEnv-v0',
@@ -14,5 +14,20 @@ register(
 register(
     id='FunctionalNeuralSortInterfaceEnv-v0',
     entry_point='sorting_gym.envs.functional_neural_sort_interface:FunctionalNeuralSortInterfaceEnv'
+)
+
+register(
+    id='KnapsackEnv-v0',
+    entry_point='sorting_gym.envs.knapsack:KnapsackEnv'
+)
+
+register(
+    id='BinPackingEnv-v0',
+    entry_point='sorting_gym.envs.bin_packing:BinPackingEnv'
+)
+
+register(
+    id='JobShopSchedulingEnv-v0',
+    entry_point='sorting_gym.envs.job_shop:JobShopSchedulingEnv'
 )
 

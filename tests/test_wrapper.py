@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from gym.spaces import Box, flatdim, MultiDiscrete, Discrete, Tuple, MultiBinary
+from gymnasium.spaces import Box, flatdim, MultiDiscrete, Discrete, Tuple, MultiBinary
 
 from sorting_gym import DiscreteParametric
 from sorting_gym.envs.basic_neural_sort_interface import BasicNeuralSortInterfaceEnv
@@ -91,7 +91,6 @@ def test_parametric_wrapped_action_samples():
         env.step(action)
 
 
-@pytest.mark.xfail
 def test_disjoint_parametric_wrapped_action_samples():
     k = 2
     env = DisjointMultiDiscreteActionSpaceWrapper(BasicNeuralSortInterfaceEnv(k=k))

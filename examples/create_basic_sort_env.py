@@ -1,9 +1,8 @@
-import gym
-import sorting_gym
+import gymnasium
 from sorting_gym.envs.basic_neural_sort_interface import BasicNeuralSortInterfaceEnv
 
-env: BasicNeuralSortInterfaceEnv = gym.make('BasicNeuralSortInterfaceEnv-v0')
-observation = env.reset()
+env: BasicNeuralSortInterfaceEnv = gymnasium.make('BasicNeuralSortInterfaceEnv-v0').unwrapped
+observation, info = env.reset()
 
-state, reward, done, info = env.step((0, 0))
+state, reward, terminated, truncated, info = env.step((0, 0))
 env.render()

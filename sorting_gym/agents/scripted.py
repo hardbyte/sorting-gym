@@ -88,7 +88,7 @@ def Swap(a, b):
 
 
 def bubble_sort_agent(obs, k):
-    i, j, l = 0, 1, 2
+    i, j, el = 0, 1, 2
     if v_less_than(obs, i, j, k):
         if data_neighbour_greater(obs, i, +1):
             return SwapWithNext(i)
@@ -97,7 +97,7 @@ def bubble_sort_agent(obs, k):
     elif v_equals(obs, i, j, k):
         return MoveVar(j, -1)
     else:
-        return AssignVar(i, l)
+        return AssignVar(i, el)
 
 
 def insertion_sort_agent(obs, k):
@@ -212,7 +212,7 @@ def quicksort_agent(obs, k=4):
     """
     function_id = obs['current_function']
     if function_id == -1:
-        i, j, low, high = 0, 1, 2, 3
+        _i, _j, low, high = 0, 1, 2, 3
         return FunctionCall(0, [low, high], [low, high], [high])
     elif function_id == 0:
         return _quicksort_f(obs)
@@ -220,3 +220,115 @@ def quicksort_agent(obs, k=4):
         return _partition_f(obs)
     else:
         raise ValueError(f"Unexpected function with ID: {function_id}")
+
+
+###############################################
+# Combinatorial optimization scripted agents
+###############################################
+# These agents operate directly on the environment (not purely through
+# observations) to validate environment correctness. They use the env's
+# internal state to implement known heuristics.
+
+
+def _move_pointer_actions(ptr_id, current_pos, target, move_opcode=2):
+    """Generate MoveVar actions to move pointer from current_pos to target."""
+    actions = []
+    while current_pos < target:
+        actions.append((move_opcode, ptr_id, True))
+        current_pos += 1
+    while current_pos > target:
+        actions.append((move_opcode, ptr_id, False))
+        current_pos -= 1
+    return actions, current_pos
+
+
+def greedy_knapsack_agent(env):
+    """Greedy knapsack heuristic: sort by value/weight ratio, greedily select.
+
+    Pre-computes a sequence of actions. Returns a list of actions.
+    """
+    indices = sorted(range(env.num_items),
+                     key=lambda i: env.items[i][1] / max(env.items[i][0], 1),
+                     reverse=True)
+
+    actions = []
+    ptr_pos = int(env.v[0])
+    remaining = env.remaining_capacity
+    for idx in indices:
+        w, v = env.items[idx]
+        if w <= remaining:
+            moves, ptr_pos = _move_pointer_actions(0, ptr_pos, idx)
+            actions.extend(moves)
+            actions.append((0, 0))  # SelectItem(0)
+            remaining -= w
+
+    actions.append((4, 0))  # Finish
+    return actions
+
+
+def first_fit_decreasing_agent(env):
+    """First Fit Decreasing bin packing heuristic.
+
+    Pre-computes a sequence of actions. Returns a list of actions.
+    """
+    indices = sorted(range(env.num_items),
+                     key=lambda i: env.items[i][0],
+                     reverse=True)
+
+    actions = []
+    ptr0_pos = int(env.v[0])
+    ptr1_pos = int(env.v[1])
+
+    # Simulate bin state
+    bin_remaining = []
+    assignments = [-1] * env.num_items
+    num_bins = 0
+
+    for idx in indices:
+        moves, ptr0_pos = _move_pointer_actions(0, ptr0_pos, idx)
+        actions.extend(moves)
+
+        size = env.items[idx][0]
+        assigned = False
+        for bin_id in range(num_bins):
+            if bin_remaining[bin_id] >= size:
+                # Find a reference item in this bin
+                for ref_idx in range(env.num_items):
+                    if assignments[ref_idx] == bin_id:
+                        moves, ptr1_pos = _move_pointer_actions(1, ptr1_pos, ref_idx)
+                        actions.extend(moves)
+                        actions.append((0, 0, 1))  # AssignToExistingBin(0, 1)
+                        bin_remaining[bin_id] -= size
+                        assignments[idx] = bin_id
+                        assigned = True
+                        break
+            if assigned:
+                break
+
+        if not assigned:
+            actions.append((1, 0))  # AssignToNewBin(0)
+            bin_remaining.append(env.bin_capacity - size)
+            assignments[idx] = num_bins
+            num_bins += 1
+
+    actions.append((4, 0))  # Finish
+    return actions
+
+
+def spt_scheduling_agent(env):
+    """Shortest Processing Time first scheduling heuristic.
+
+    Pre-computes a sequence of actions. Returns a list of actions.
+    """
+    indices = sorted(range(env.num_items),
+                     key=lambda i: env.processing_times[i])
+
+    actions = []
+    ptr_pos = int(env.v[0])
+    for idx in indices:
+        moves, ptr_pos = _move_pointer_actions(0, ptr_pos, idx, move_opcode=1)
+        actions.extend(moves)
+        actions.append((0, 0))  # ScheduleNext(0)
+
+    actions.append((3, 0))  # Finish
+    return actions
