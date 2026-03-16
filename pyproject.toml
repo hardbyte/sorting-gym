@@ -24,6 +24,9 @@ examples = [
     "stable-baselines3>=2.7.1",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"examples/*" = ["E402"]
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",
