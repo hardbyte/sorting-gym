@@ -1,8 +1,31 @@
 import numpy as np
 from gymnasium import Env
 
+from dataclasses import replace
+
 from sorting_gym import DiscreteParametric
 from sorting_gym.envs.tape import SortTapeAlgorithmicEnv
+
+
+def _apply_costs(instructions, instruction_costs):
+    """Override instruction costs by name.
+
+    Costs are what the agent is actually optimising, so making them settable
+    lets the same environment ask for different algorithms. Note that
+    SwapWithNext is adjacent-only, so any correct policy performs exactly one
+    swap per inversion: pricing swaps shifts every policy's total by the same
+    amount and cannot change which algorithm wins. The live axis is MoveVar
+    against AssignVar.
+    """
+    if not instruction_costs:
+        return instructions
+    known = {instruction.name for instruction in instructions}
+    unknown = set(instruction_costs) - known
+    if unknown:
+        raise ValueError(f"unknown instruction(s) {sorted(unknown)}; expected {sorted(known)}")
+    return [replace(instruction, cost=float(instruction_costs.get(instruction.name,
+                                                                 instruction.cost)))
+            for instruction in instructions]
 
 
 class NeuralSortInterfaceEnv(Env):
@@ -16,16 +39,17 @@ class NeuralSortInterfaceEnv(Env):
     """
 
     def __init__(self, base, k, instructions, max_episode_steps=None,
-                 allow_sorted_instances=False):
+                 allow_sorted_instances=False, instruction_costs=None):
         self.base = base
         self.k = k
-        self.instructions = instructions
+        self.instructions = _apply_costs(instructions, instruction_costs)
         self.v = np.zeros(shape=k, dtype=np.int32)
         self.A = None
         # None means "scale the budget with the instance": an O(n^2) sort needs
         # roughly 0.5*n^2 instructions, so 4*n^2 leaves plenty of headroom.
         self.max_episode_steps = max_episode_steps
         self.steps_taken = 0
+        self.episode_cost = 0.0
         # Generates random data for each episode increasing the length as the agent "levels up"
         self.tape_env = SortTapeAlgorithmicEnv(
             base=base, starting_min_length=4, allow_sorted_instances=allow_sorted_instances)
@@ -45,12 +69,16 @@ class NeuralSortInterfaceEnv(Env):
         self.v[::2] = 0
         self.v[1::2] = len(self.A) - 1
         self.steps_taken = 0
+        self.episode_cost = 0.0
 
     @property
     def step_budget(self):
         if self.max_episode_steps is not None:
             return self.max_episode_steps
         return 4 * len(self.A) ** 2
+
+    def instruction_cost(self, instruction):
+        return self.instructions[instruction].cost
 
     def _account_for_step(self, terminated):
         """Count the step, decide truncation, and feed the difficulty curriculum.

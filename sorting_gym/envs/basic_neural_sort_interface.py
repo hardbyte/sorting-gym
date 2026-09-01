@@ -12,12 +12,13 @@ from sorting_gym.envs.sort_interface_base import NeuralSortInterfaceEnv
 class Instruction:
     """
     Keeps track of an instruction's:
-    opcode, name, argument space
+    opcode, name, argument space, implementation, and cost
     """
     opcode: int
     name: str
     argument_space: Space
     implementation: Callable
+    cost: float = 1.0
 
     def __repr__(self):
         return f"<Instruction {self.opcode} - {self.name}>"
@@ -38,7 +39,8 @@ class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
 
     """
 
-    def __init__(self, base=10, k=4, max_episode_steps=None, allow_sorted_instances=False):
+    def __init__(self, base=10, k=4, max_episode_steps=None, allow_sorted_instances=False,
+                 instruction_costs=None):
 
         instructions = [
             # Instruction(opcode, name, argument space, implementation method)
@@ -48,7 +50,8 @@ class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         ]
         # super call will add the DiscreteParametric action_space attribute
         super().__init__(base, k, instructions, max_episode_steps=max_episode_steps,
-                         allow_sorted_instances=allow_sorted_instances)
+                         allow_sorted_instances=allow_sorted_instances,
+                         instruction_costs=instruction_costs)
 
         self.nested_observation_space = Dict(
             pairwise_view_comparisons=MultiBinary((6 * k) * (k-1)//2),
@@ -133,9 +136,12 @@ class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
 
         # Check for solved, calculate reward
         terminated = self.A == self.tape_env.target
+        cost = self.instruction_cost(instruction)
+        self.episode_cost += cost
         truncated = self._account_for_step(terminated)
-        reward = -1
-        info_dict = {'data': list(self.A), 'interface': list(self.v)}
+        reward = -cost
+        info_dict = {'data': list(self.A), 'interface': list(self.v),
+                     'cost': cost, 'episode_cost': self.episode_cost}
         return self._get_obs(), reward, terminated, truncated, info_dict
 
     def render(self, mode="human"):

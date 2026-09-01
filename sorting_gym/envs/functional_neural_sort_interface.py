@@ -22,7 +22,8 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
     """
 
     def __init__(self, base=10, k=4, number_of_functions=2, function_inputs=2, function_returns=1,
-                 max_episode_steps=None, allow_sorted_instances=False):
+                 max_episode_steps=None, allow_sorted_instances=False,
+                 instruction_costs=None):
 
         self.number_of_functions = number_of_functions
         self.function_inputs = function_inputs
@@ -50,7 +51,8 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
         ]
         # super call will add the action_space attribute
         super().__init__(base, k, instructions, max_episode_steps=max_episode_steps,
-                         allow_sorted_instances=allow_sorted_instances)
+                         allow_sorted_instances=allow_sorted_instances,
+                         instruction_costs=instruction_costs)
 
         self.current_function = -1
         self.previous_action = -1
@@ -225,9 +227,13 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
 
         # Check for solved, calculate reward
         terminated = self.A == self.tape_env.target
+        cost = self.instruction_cost(instruction)
+        self.episode_cost += cost
         truncated = self._account_for_step(terminated)
-        reward = -1
-        info_dict = {'data': list(self.A), 'interface': list(self.v), 'function': self.current_function}
+        reward = -cost
+        info_dict = {'data': list(self.A), 'interface': list(self.v),
+                     'function': self.current_function,
+                     'cost': cost, 'episode_cost': self.episode_cost}
 
         self.previous_action = instruction
 
