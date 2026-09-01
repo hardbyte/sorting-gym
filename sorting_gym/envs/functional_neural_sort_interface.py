@@ -22,7 +22,7 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
     """
 
     def __init__(self, base=10, k=4, number_of_functions=2, function_inputs=2, function_returns=1,
-                 max_episode_steps=None):
+                 max_episode_steps=None, allow_sorted_instances=False):
 
         self.number_of_functions = number_of_functions
         self.function_inputs = function_inputs
@@ -49,7 +49,8 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
             Instruction(5, 'Swap',         Tuple([Discrete(k), Discrete(k)]),       self.op_swap),
         ]
         # super call will add the action_space attribute
-        super().__init__(base, k, instructions, max_episode_steps=max_episode_steps)
+        super().__init__(base, k, instructions, max_episode_steps=max_episode_steps,
+                         allow_sorted_instances=allow_sorted_instances)
 
         self.current_function = -1
         self.previous_action = -1

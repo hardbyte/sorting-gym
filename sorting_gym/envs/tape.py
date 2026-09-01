@@ -22,9 +22,10 @@ class SortTapeAlgorithmicEnv(gym.Env):
     # length of one, or base=1) still terminate.
     MAX_RESAMPLE_ATTEMPTS = 100
 
-    def __init__(self, base=10, starting_min_length=2):
+    def __init__(self, base=10, starting_min_length=2, allow_sorted_instances=False):
         super().__init__()
         self.base = base
+        self.allow_sorted_instances = allow_sorted_instances
         self.min_length = starting_min_length
         # Reward bookkeeping for promotion
         self.episode_total_reward = 0
@@ -69,8 +70,11 @@ class SortTapeAlgorithmicEnv(gym.Env):
 
         # An already sorted sequence terminates on whatever instruction the agent
         # happens to pick first, rewarding it for nothing and inflating both the
-        # apparent success rate and curriculum promotion.
-        for _ in range(self.MAX_RESAMPLE_ATTEMPTS):
+        # apparent success rate and curriculum promotion. Excluded from the
+        # training stream by default; set allow_sorted_instances to sample the
+        # natural distribution instead, e.g. when evaluating a trained policy.
+        attempts = 1 if self.allow_sorted_instances else self.MAX_RESAMPLE_ATTEMPTS
+        for _ in range(attempts):
             length = self._get_sequence_length()
             self.input_data = list(self.np_random.integers(0, self.base, size=length))
             self.target = list(sorted(self.input_data))

@@ -38,7 +38,7 @@ class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
 
     """
 
-    def __init__(self, base=10, k=4, max_episode_steps=None):
+    def __init__(self, base=10, k=4, max_episode_steps=None, allow_sorted_instances=False):
 
         instructions = [
             # Instruction(opcode, name, argument space, implementation method)
@@ -47,7 +47,8 @@ class BasicNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
             Instruction(2, 'AssignVar',    Tuple([Discrete(k), Discrete(k)]),       self.op_assign_var),
         ]
         # super call will add the DiscreteParametric action_space attribute
-        super().__init__(base, k, instructions, max_episode_steps=max_episode_steps)
+        super().__init__(base, k, instructions, max_episode_steps=max_episode_steps,
+                         allow_sorted_instances=allow_sorted_instances)
 
         self.nested_observation_space = Dict(
             pairwise_view_comparisons=MultiBinary((6 * k) * (k-1)//2),

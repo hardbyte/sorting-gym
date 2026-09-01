@@ -15,7 +15,8 @@ class NeuralSortInterfaceEnv(Env):
     Concrete implementations must implement `step` and create an observation.
     """
 
-    def __init__(self, base, k, instructions, max_episode_steps=None):
+    def __init__(self, base, k, instructions, max_episode_steps=None,
+                 allow_sorted_instances=False):
         self.base = base
         self.k = k
         self.instructions = instructions
@@ -26,7 +27,8 @@ class NeuralSortInterfaceEnv(Env):
         self.max_episode_steps = max_episode_steps
         self.steps_taken = 0
         # Generates random data for each episode increasing the length as the agent "levels up"
-        self.tape_env = SortTapeAlgorithmicEnv(base=base, starting_min_length=4)
+        self.tape_env = SortTapeAlgorithmicEnv(
+            base=base, starting_min_length=4, allow_sorted_instances=allow_sorted_instances)
 
         # Action space is variable - conditioned on the instruction selected
         # This isn't really well supported by the Gymnasium api so we've
