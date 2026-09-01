@@ -107,7 +107,7 @@ def build_api(costs):
     return API.replace("{cost_table}", cost_table(costs))
 
 
-def call(model, messages, timeout=900, think=False, max_tokens=4000):
+def call(model, messages, timeout=3600, think=False, max_tokens=4000):
     payload = json.dumps({
         "model": model, "messages": messages, "stream": False, "think": think,
         "options": {"temperature": 0.7, "num_predict": max_tokens},
@@ -209,6 +209,12 @@ def main():
     parser.add_argument("--lengths", type=int, nargs="+", default=[5, 10, 20])
     parser.add_argument("--think", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--seed-program", default=None,
+                        help="start from this program instead of from scratch, so two "
+                             "cost models can be compared from an identical starting point")
+    parser.add_argument("--timeout", type=int, default=3600,
+                        help="per-generation timeout; a large model writing code on CPU "
+                             "can take many minutes")
     parser.add_argument("--costs", choices=sorted(COST_MODELS), default="uniform",
                         help="instruction price list the candidate is optimising")
     parser.add_argument("--out", default=None, help="write the best program here")
@@ -232,13 +238,21 @@ def main():
 
     best, best_source, transcript = None, None, []
     messages = [{"role": "user", "content": api}]
+
+    if args.seed_program:
+        with open(args.seed_program) as handle:
+            seed_policy, seed_source = extract_policy(handle.read())
+        best = evaluate(seed_policy, **evaluation)
+        best_source = seed_source
+        print(f"seed program: solved {best['solved']}/{best['total']} "
+              f"cost {best['mean_cost']:.1f} mix {best['instruction_mix']}\n")
     started = time.time()
     calls = 0
 
     for round_index in range(args.rounds):
         for candidate in range(args.candidates):
             try:
-                reply = call(args.model, messages, think=args.think)
+                reply = call(args.model, messages, think=args.think, timeout=args.timeout)
                 calls += 1
             except Exception as error:                 # noqa: BLE001
                 print(f"  backend error: {error}", file=sys.stderr)
