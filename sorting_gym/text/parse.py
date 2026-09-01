@@ -31,13 +31,28 @@ class ObservationFacts:
     position: dict = field(default_factory=dict)
     value: dict = field(default_factory=dict)
 
+    def _check(self, *indices):
+        """Reject out-of-range pointers with a message naming the valid range.
+
+        A bare KeyError here says nothing a caller can act on, which matters
+        when the caller is a generated program whose error text is fed back to
+        whatever produced it.
+        """
+        for index in indices:
+            if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < self.k:
+                raise ParseError(
+                    f"pointer index {index!r} out of range; expected 0 to {self.k - 1}")
+
     def at_left_edge(self, i):
+        self._check(i)
         return self.left[i] is None
 
     def at_right_edge(self, i):
+        self._check(i)
         return self.right[i] is None
 
     def _pair(self, table, i, j):
+        self._check(i, j)
         # A pointer compared with itself is trivially equal. Only pairs with
         # i < j are stored, so without this a caller asking about (i, i) --
         # which is a perfectly reasonable thing to ask -- gets a KeyError.
@@ -67,10 +82,12 @@ class ObservationFacts:
         return self._pair(self.value, i, j) == ">"
 
     def data_neighbour_greater(self, i, direction):
+        self._check(i)
         side = self.left if direction < 0 else self.right
         return side[i] == ">"
 
     def data_neighbour_less(self, i, direction):
+        self._check(i)
         side = self.left if direction < 0 else self.right
         return side[i] == "<"
 

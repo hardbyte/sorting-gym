@@ -180,3 +180,18 @@ def test_comparisons_are_symmetric():
                 assert facts.v_less_than(i, j) == facts.v_greater_than(j, i)
                 assert facts.v_equals(i, j) == facts.v_equals(j, i)
                 assert facts.data_less_than(i, j) == facts.data_greater_than(j, i)
+
+
+@pytest.mark.parametrize("bad", [-1, 3, 99])
+def test_out_of_range_pointer_gives_an_actionable_error(bad):
+    """A generated program's error text is fed back to whatever wrote it, so it
+    has to say what was wrong rather than surfacing a bare KeyError."""
+    k = 3
+    obs = next(iter(_random_observations(k, 1, seed=11)))
+    facts = parse_observation(render_observation(obs, k), k)
+    for call in (lambda: facts.v_less_than(bad, 0),
+                 lambda: facts.data_greater_than(0, bad),
+                 lambda: facts.at_left_edge(bad),
+                 lambda: facts.data_neighbour_greater(bad, +1)):
+        with pytest.raises(ParseError, match="out of range"):
+            call()
