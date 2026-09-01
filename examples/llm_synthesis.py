@@ -62,6 +62,11 @@ Return exactly one instruction as a string:
   "MoveVar(i, -1)"    move v_i one place left (stops at the start)
   "AssignVar(i, j)"   set v_i = v_j
 
+You cannot recover absolute positions or element values, and there is no way to
+learn how long the array is. The comparisons listed above are the only
+information available, so a policy that tries to reconstruct indices or the
+contents of A cannot work. Decide purely from the relations.
+
 At the start of an episode v0 and v2 are at the first element, v1 at the last.
 The episode ends as soon as A is sorted, and fewer instructions is better. Your
 function is called fresh each step and keeps no state between calls, so every
