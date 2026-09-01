@@ -45,3 +45,18 @@ def test_insertion_sort_agent():
     k = 3
     env = BasicNeuralSortInterfaceEnv(k=k)
     _test_sort_agent(insertion_sort_agent, env, verbose=False)
+
+
+def test_reset_never_yields_an_already_sorted_array():
+    """A sorted array would terminate on the agent's first arbitrary instruction."""
+    env = BasicNeuralSortInterfaceEnv(k=3)
+    for _ in range(2000):
+        env.reset()
+        assert env.A != sorted(env.A)
+
+
+def test_reset_terminates_when_every_sequence_is_sorted():
+    """base=1 makes an unsorted sequence impossible; reset must still return."""
+    env = BasicNeuralSortInterfaceEnv(base=1, k=3)
+    env.reset()
+    assert env.A == sorted(env.A)

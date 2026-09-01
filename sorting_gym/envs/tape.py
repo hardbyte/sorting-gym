@@ -17,6 +17,10 @@ class SortTapeAlgorithmicEnv(gym.Env):
     """
 
     MIN_REWARD_SHORTFALL_FOR_PROMOTION = -1
+    # A short sequence over a small alphabet is sometimes sorted by chance; give
+    # up resampling after this many attempts so degenerate configurations (a
+    # length of one, or base=1) still terminate.
+    MAX_RESAMPLE_ATTEMPTS = 100
 
     def __init__(self, base=10, starting_min_length=2):
         super().__init__()
@@ -63,9 +67,15 @@ class SortTapeAlgorithmicEnv(gym.Env):
         super().reset(seed=seed)
         self._check_levelup()
 
-        length = self._get_sequence_length()
-        self.input_data = list(self.np_random.integers(0, self.base, size=length))
-        self.target = list(sorted(self.input_data))
+        # An already sorted sequence terminates on whatever instruction the agent
+        # happens to pick first, rewarding it for nothing and inflating both the
+        # apparent success rate and curriculum promotion.
+        for _ in range(self.MAX_RESAMPLE_ATTEMPTS):
+            length = self._get_sequence_length()
+            self.input_data = list(self.np_random.integers(0, self.base, size=length))
+            self.target = list(sorted(self.input_data))
+            if self.input_data != self.target:
+                break
         self.episode_total_reward = 0
 
         obs = 0  # dummy — callers use input_data directly

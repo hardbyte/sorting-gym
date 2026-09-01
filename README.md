@@ -31,8 +31,9 @@ features derived from **k pointer variables** (`v_1, ..., v_k`) over the array:
 | **Neighbour comparisons** | `8k` bits | For each pointer `v_i`: 4 bits for the left neighbour (`at_boundary`, `>`, `==`, `<`) and 4 bits for the right neighbour (`>`, `==`, `<`, `at_boundary`) |
 | **Pairwise comparisons** | `6 × k(k-1)/2` bits | For each pointer pair `(i,j)`: position comparisons (`v_i < v_j`, `==`, `>`) and value comparisons (`A[v_i] < A[v_j]`, `==`, `>`) |
 
-With the default `k=3`, this gives **42 binary features** — constant regardless of array length.
-This is the key property enabling generalization to longer sequences than seen during training.
+With the default `k=4` this gives **68 binary features**, and with `k=3` (enough for the bubble
+and insertion sort agents) **42** — constant regardless of array length. This is the key property
+enabling generalization to longer sequences than seen during training.
 
 #### Action Space
 
