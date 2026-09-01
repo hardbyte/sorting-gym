@@ -107,10 +107,14 @@ def build_api(costs):
     return API.replace("{cost_table}", cost_table(costs))
 
 
-def call(model, messages, timeout=3600, think=False, max_tokens=4000):
+def call(model, messages, timeout=3600, think=False, max_tokens=4000, context=16384):
+    # ollama defaults to a 4096 token context. The prompt plus a seed program
+    # nearly fills that, leaving no room to generate, which shows up as a reply
+    # containing no function at all rather than as an error.
     payload = json.dumps({
         "model": model, "messages": messages, "stream": False, "think": think,
-        "options": {"temperature": 0.7, "num_predict": max_tokens},
+        "options": {"temperature": 0.7, "num_predict": max_tokens,
+                    "num_ctx": context},
     }).encode()
     request = urllib.request.Request(
         OLLAMA_URL, data=payload, headers={"Content-Type": "application/json"})
@@ -209,6 +213,9 @@ def main():
     parser.add_argument("--lengths", type=int, nargs="+", default=[5, 10, 20])
     parser.add_argument("--think", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--context", type=int, default=16384,
+                        help="context window; the default 4096 is too small for a "
+                             "prompt plus a seed program plus a reply")
     parser.add_argument("--seed-program", default=None,
                         help="start from this program instead of from scratch, so two "
                              "cost models can be compared from an identical starting point")
@@ -242,6 +249,9 @@ def main():
     if args.seed_program:
         with open(args.seed_program) as handle:
             seed_policy, seed_source = extract_policy(handle.read())
+        # Keep only the function; the file's header docstring is provenance for
+        # readers and would otherwise crowd out the model's room to answer.
+        seed_source = seed_source[seed_source.index("def policy"):]
         best = evaluate(seed_policy, **evaluation)
         best_source = seed_source
         print(f"seed program: solved {best['solved']}/{best['total']} "
@@ -252,7 +262,8 @@ def main():
     for round_index in range(args.rounds):
         for candidate in range(args.candidates):
             try:
-                reply = call(args.model, messages, think=args.think, timeout=args.timeout)
+                reply = call(args.model, messages, think=args.think, timeout=args.timeout,
+                             context=args.context)
                 calls += 1
             except Exception as error:                 # noqa: BLE001
                 print(f"  backend error: {error}", file=sys.stderr)
