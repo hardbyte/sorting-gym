@@ -150,3 +150,33 @@ def test_demonstration_actions_match_the_rendered_state():
     from sorting_gym.text.agents import insertion_sort_policy
     for text, action in sample_demonstrations(3, 8, seed=2):
         assert insertion_sort_policy(parse_observation(text, 3)) == action
+
+
+@pytest.mark.parametrize("i", [0, 1, 2])
+def test_self_comparison_is_defined(i):
+    """facts.v_equals(i, i) must answer, not raise.
+
+    Only pairs with i < j are stored. Asking about a pointer and itself is a
+    reasonable thing for a policy to do, and it used to raise KeyError.
+    """
+    k = 3
+    obs = next(iter(_random_observations(k, 1, seed=9)))
+    facts = parse_observation(render_observation(obs, k), k)
+    assert facts.v_equals(i, i) is True
+    assert facts.v_less_than(i, i) is False
+    assert facts.v_greater_than(i, i) is False
+    assert facts.data_equals(i, i) is True
+    assert facts.data_less_than(i, i) is False
+    assert facts.data_greater_than(i, i) is False
+
+
+def test_comparisons_are_symmetric():
+    """Asking (j, i) must be the mirror of (i, j)."""
+    k = 3
+    for obs in _random_observations(k, 50, seed=10):
+        facts = parse_observation(render_observation(obs, k), k)
+        for i in range(k):
+            for j in range(k):
+                assert facts.v_less_than(i, j) == facts.v_greater_than(j, i)
+                assert facts.v_equals(i, j) == facts.v_equals(j, i)
+                assert facts.data_less_than(i, j) == facts.data_greater_than(j, i)

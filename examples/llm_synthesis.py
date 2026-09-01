@@ -215,13 +215,16 @@ def main():
         if best and best["solve_rate"] >= 1.0:
             print("\nsolved every instance; stopping early")
             break
-        if transcript and transcript[-1][0] is not None:
+        # Refine from the best program so far rather than the most recent one,
+        # so a bad sample does not throw away the round's progress.
+        if best is not None:
             messages = [
                 {"role": "user", "content": API},
-                {"role": "assistant", "content": f"```python\n{transcript[-1][1]}\n```"},
-                {"role": "user", "content": feedback(transcript[-1][0]) +
-                 " Rewrite the function so it sorts every instance. Reply with the "
-                 "function only."},
+                {"role": "assistant", "content": f"```python\n{best_source}\n```"},
+                {"role": "user", "content": feedback(best) +
+                 " Rewrite the function so it sorts every instance. Make sure every "
+                 "path makes progress towards sorted order so the policy cannot loop "
+                 "forever. Reply with the function only."},
             ]
 
     print(f"\n{calls} generations in {time.time()-started:.0f}s")

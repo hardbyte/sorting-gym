@@ -38,6 +38,11 @@ class ObservationFacts:
         return self.right[i] is None
 
     def _pair(self, table, i, j):
+        # A pointer compared with itself is trivially equal. Only pairs with
+        # i < j are stored, so without this a caller asking about (i, i) --
+        # which is a perfectly reasonable thing to ask -- gets a KeyError.
+        if i == j:
+            return "=="
         if i < j:
             return table[(i, j)]
         flipped = {"<": ">", ">": "<", "==": "=="}
