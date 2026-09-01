@@ -67,11 +67,12 @@ class BackendError(RuntimeError):
 class Backend:
     """Chat completion against a local ollama server."""
 
-    def __init__(self, model, temperature=0.0, timeout=600, tools=None):
+    def __init__(self, model, temperature=0.0, timeout=600, tools=None, think=False):
         self.model = model
         self.temperature = temperature
         self.timeout = timeout
         self.tools = tools
+        self.think = think
         self.calls = 0
 
     def __call__(self, messages, max_tokens=200):
@@ -79,7 +80,7 @@ class Backend:
             "model": self.model,
             "messages": messages,
             "stream": False,
-            "think": False,
+            "think": self.think,
             "options": {"temperature": self.temperature, "num_predict": max_tokens},
         }
         if self.tools:
@@ -109,9 +110,14 @@ class Backend:
 
 
 def _token_budget(backend, chain_of_thought):
+    # These models narrate before answering. A tight cap truncates the reply
+    # before it reaches an instruction, which scores as a parse failure and
+    # looks exactly like the model being unable to answer.
+    if backend.think:
+        return 2000
     if backend.tools:
-        return 200
-    return 300 if chain_of_thought else 30
+        return 400
+    return 512 if chain_of_thought else 256
 
 
 def interpret(raw, k):
@@ -186,14 +192,15 @@ def _expert_states(k, count, seed, base=10, lengths=(4, 9)):
     return collected[:count]
 
 
-def run_probe(backend, k, style, shots, chain_of_thought, states, seed, verbose):
+def run_probe(backend, k, style, shots, chain_of_thought, states, seed, verbose,
+              strategy=False):
     demonstrations = sample_demonstrations(k, shots, style=style, seed=seed + 1) if shots else ()
     counts = Counter()
     for observation in states:
         text = render_observation(observation, k, style=style)
         messages = build_messages(text, k, style=style, demonstrations=demonstrations,
                                   chain_of_thought=chain_of_thought,
-                                  tool_calling=bool(backend.tools))
+                                  tool_calling=bool(backend.tools), strategy=strategy)
         raw = backend(messages, max_tokens=_token_budget(backend, chain_of_thought))
         strict, lenient = interpret(raw, k)
         counts["total"] += 1
@@ -209,7 +216,7 @@ def run_probe(backend, k, style, shots, chain_of_thought, states, seed, verbose)
 
 
 def run_episodes(backend, k, style, shots, chain_of_thought, n, instances, seed, verbose,
-                 max_steps=None):
+                 max_steps=None, strategy=False):
     demonstrations = sample_demonstrations(k, shots, style=style, seed=seed + 1) if shots else ()
     rng = np.random.default_rng(seed)
     results = []
@@ -228,7 +235,7 @@ def run_episodes(backend, k, style, shots, chain_of_thought, n, instances, seed,
             text = render_observation(observation, k, style=style)
             messages = build_messages(text, k, style=style, demonstrations=demonstrations,
                                       chain_of_thought=chain_of_thought,
-                                      tool_calling=bool(backend.tools))
+                                      tool_calling=bool(backend.tools), strategy=strategy)
             raw = backend(messages, max_tokens=_token_budget(backend, chain_of_thought))
             _strict, action = interpret(raw, k)
             if action is None:
@@ -268,6 +275,11 @@ def main():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--tools", action="store_true",
                         help="use native tool calling instead of free text")
+    parser.add_argument("--strategy", action="store_true",
+                        help="spell out the insertion sort rules: tests whether the model can "
+                             "execute a known algorithm, separately from inventing one")
+    parser.add_argument("--think", action="store_true",
+                        help="allow the model's own reasoning tokens")
     parser.add_argument("--timeout", type=int, default=600,
                         help="per-generation timeout; CPU-only inference is slow")
     parser.add_argument("--verbose", action="store_true")
@@ -281,7 +293,7 @@ def main():
               file=sys.stderr)
         return 1
 
-    backend = Backend(args.model, timeout=args.timeout,
+    backend = Backend(args.model, timeout=args.timeout, think=args.think,
                       tools=tool_schemas(args.k) if args.tools else None)
     started = time.time()
     # Fail fast and loudly: a table of zeroes from an unreachable model reads
@@ -305,7 +317,7 @@ def main():
                                else _random_states)
                     states = list(sampler(args.k, args.states, args.seed))
                     counts = run_probe(backend, args.k, style, shots, bool(cot), states,
-                                       args.seed, args.verbose)
+                                       args.seed, args.verbose, strategy=args.strategy)
                     total = max(counts["total"], 1)
                     print(f"{style:10s} {shots:5d} {cot:3d} "
                           f"{100*counts['strict']/total:7.1f}% {100*counts['lenient']/total:7.1f}% "
@@ -319,7 +331,8 @@ def main():
                     for n in args.n:
                         results = run_episodes(backend, args.k, style, shots, bool(cot), n,
                                                args.instances, args.seed, args.verbose,
-                                               max_steps=args.max_steps)
+                                               max_steps=args.max_steps,
+                                               strategy=args.strategy)
                         solved = [r for r in results if r["solved"]]
                         steps = np.mean([r["steps"] for r in solved]) if solved else float("nan")
                         malformed = np.mean([r["malformed"] for r in results]) if results else 0

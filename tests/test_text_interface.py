@@ -128,3 +128,25 @@ def test_format_action_round_trips(action):
 def test_parse_observation_rejects_malformed_text():
     with pytest.raises(ParseError):
         parse_observation("v0: something odd | no right neighbour", 3)
+
+
+def test_demonstrations_are_not_all_the_same_action():
+    """Few-shot demonstrations must show contrast.
+
+    Sampling random pointer placements and taking the first few hits returns
+    the same instruction every time, because one action covers ~61% of the
+    expert's choices there. A prompt full of identical answers teaches a
+    constant policy - the exact failure it then looks like the model invented.
+    """
+    from sorting_gym.text.prompts import sample_demonstrations
+    demonstrations = sample_demonstrations(3, 5, seed=1)
+    assert len(demonstrations) == 5
+    assert len({action for _text, action in demonstrations}) >= 4
+
+
+def test_demonstration_actions_match_the_rendered_state():
+    """Each demonstrated action is what the expert really does in that state."""
+    from sorting_gym.text.prompts import sample_demonstrations
+    from sorting_gym.text.agents import insertion_sort_policy
+    for text, action in sample_demonstrations(3, 8, seed=2):
+        assert insertion_sort_policy(parse_observation(text, 3)) == action
