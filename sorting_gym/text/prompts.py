@@ -37,14 +37,16 @@ Each turn you are given the raw comparison bits.
   v_i<v_j, v_i==v_j, v_i>v_j, A[v_i]<A[v_j], A[v_i]==A[v_j], A[v_i]>A[v_j]"""
 
 
-def system_prompt(k, style=SEMANTIC, chain_of_thought=False):
+def system_prompt(k, style=SEMANTIC, chain_of_thought=False, tool_calling=False):
     fmt = _BITS_FORMAT if style == BITS else _SEMANTIC_FORMAT
     pointers = ", ".join(f"v{i}" for i in range(k))
-    closing = (
-        "Think step by step in at most two short sentences, then give the "
-        "instruction alone on the final line."
-        if chain_of_thought else
-        "Reply with the instruction and nothing else.")
+    if tool_calling:
+        closing = "Call exactly one of the provided tools each turn."
+    elif chain_of_thought:
+        closing = ("Think step by step in at most two short sentences, then give the "
+                   "instruction alone on the final line.")
+    else:
+        closing = "Reply with the instruction and nothing else."
     return f"""\
 You are sorting an array A of integers into ascending order.
 
@@ -93,11 +95,12 @@ def sample_demonstrations(k, count, style=SEMANTIC, seed=0, base=10):
 
 
 def build_messages(observation_text, k, style=SEMANTIC, demonstrations=(),
-                   chain_of_thought=False):
+                   chain_of_thought=False, tool_calling=False):
     """Chat messages for one turn. Stateless: the observation is Markov."""
     messages = [{"role": "system",
                  "content": system_prompt(k, style=style,
-                                          chain_of_thought=chain_of_thought)}]
+                                          chain_of_thought=chain_of_thought,
+                                          tool_calling=tool_calling)}]
     for demo_text, demo_action in demonstrations:
         messages.append({"role": "user", "content": demo_text})
         messages.append({"role": "assistant", "content": demo_action})

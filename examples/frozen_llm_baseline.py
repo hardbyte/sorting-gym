@@ -13,6 +13,25 @@ Two modes, cheapest first.
 The point is to find out whether RL has anything to bootstrap from. If a frozen
 model never solves the smallest instances, every GRPO group scores identically
 and training starts from zero signal.
+
+Criteria, fixed before running anything, because a threshold chosen after the
+fact is a threshold chosen to be passed:
+
+  Probe
+    strict parse >= 90%          constrained decoding is not needed
+    agreement well above the     the model is reading the observation rather
+    majority-action baseline     than guessing one instruction every turn
+    (~38% on expert states)
+
+  Episodes, only if the probe passes
+    >= 30% of n=4 solved         GO: RL has something to bootstrap from
+    some but < 30% solved        MARGINAL: needs an SFT cold start first
+    0 solved at n=4              NO-GO: every GRPO group scores identically
+
+Agreement is a proxy, not ground truth: a model could disagree with the
+reference and still sort by some other valid route. High agreement is therefore
+strong evidence to continue, while low agreement on its own is not evidence to
+stop -- only zero episode solves is.
 """
 
 import argparse
@@ -28,11 +47,16 @@ import numpy as np
 
 from sorting_gym.agents.scripted import bubble_sort_agent, insertion_sort_agent
 from sorting_gym.envs.basic_neural_sort_interface import BasicNeuralSortInterfaceEnv
-from sorting_gym.text import BITS, SEMANTIC, ParseError, parse_action, render_observation
+from sorting_gym.text import (
+    BITS, SEMANTIC, ParseError, action_from_tool_call, parse_action, render_observation,
+    tool_schemas)
 from sorting_gym.text.prompts import build_messages, sample_demonstrations
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
+# Chat models like to dress a bare answer in markdown. That is presentation,
+# not a malformed instruction, so it is normalised away before strict parsing.
+MARKDOWN = re.compile(r"[`*_]+")
 ANY_INSTRUCTION = re.compile(r"(SwapWithNext|MoveVar|AssignVar)\s*\([^)]*\)")
 
 
@@ -43,20 +67,24 @@ class BackendError(RuntimeError):
 class Backend:
     """Chat completion against a local ollama server."""
 
-    def __init__(self, model, temperature=0.0, timeout=120):
+    def __init__(self, model, temperature=0.0, timeout=600, tools=None):
         self.model = model
         self.temperature = temperature
         self.timeout = timeout
+        self.tools = tools
         self.calls = 0
 
     def __call__(self, messages, max_tokens=200):
-        payload = json.dumps({
+        request_body = {
             "model": self.model,
             "messages": messages,
             "stream": False,
             "think": False,
             "options": {"temperature": self.temperature, "num_predict": max_tokens},
-        }).encode()
+        }
+        if self.tools:
+            request_body["tools"] = self.tools
+        payload = json.dumps(request_body).encode()
         request = urllib.request.Request(
             OLLAMA_URL, data=payload, headers={"Content-Type": "application/json"})
         try:
@@ -69,18 +97,33 @@ class Backend:
         except (urllib.error.URLError, OSError) as error:
             raise BackendError(f"could not reach ollama at {OLLAMA_URL}: {error}") from error
         self.calls += 1
-        return body["message"]["content"]
+        message = body["message"]
+        if self.tools:
+            # Returned as a call so the caller can tell a constrained decode
+            # apart from the model answering in prose anyway.
+            calls = message.get("tool_calls") or []
+            if calls:
+                function = calls[0]["function"]
+                return {"name": function["name"], "arguments": function.get("arguments", {})}
+        return message["content"]
+
+
+def _token_budget(backend, chain_of_thought):
+    if backend.tools:
+        return 200
+    return 300 if chain_of_thought else 30
 
 
 def interpret(raw, k):
-    """Return (strict_action, lenient_action). Either may be None.
+    """Also accepts a tool call dict, in which case the schema guarantees form."""
+    if isinstance(raw, dict):
+        try:
+            action = action_from_tool_call(raw["name"], raw["arguments"], k)
+        except ParseError:
+            return None, None
+        return action, action
 
-    strict  - the whole reply is one instruction, which is what a well behaved
-              policy emits and what constrained decoding would guarantee.
-    lenient - an instruction was found somewhere in the reply, e.g. after the
-              model narrated its reasoning first.
-    """
-    text = THINK_BLOCK.sub("", raw).strip()
+    text = MARKDOWN.sub("", THINK_BLOCK.sub("", raw)).strip().rstrip(".")
     strict = None
     try:
         strict = parse_action(text, k)
@@ -149,8 +192,9 @@ def run_probe(backend, k, style, shots, chain_of_thought, states, seed, verbose)
     for observation in states:
         text = render_observation(observation, k, style=style)
         messages = build_messages(text, k, style=style, demonstrations=demonstrations,
-                                  chain_of_thought=chain_of_thought)
-        raw = backend(messages, max_tokens=300 if chain_of_thought else 30)
+                                  chain_of_thought=chain_of_thought,
+                                  tool_calling=bool(backend.tools))
+        raw = backend(messages, max_tokens=_token_budget(backend, chain_of_thought))
         strict, lenient = interpret(raw, k)
         counts["total"] += 1
         counts["strict"] += strict is not None
@@ -159,16 +203,18 @@ def run_probe(backend, k, style, shots, chain_of_thought, states, seed, verbose)
             counts["insertion"] += tuple(lenient) == tuple(insertion_sort_agent(observation, k))
             counts["bubble"] += tuple(lenient) == tuple(bubble_sort_agent(observation, k))
         if verbose:
-            print(f"    {text.splitlines()[0][:40]:42s} -> {raw.strip()[:40]!r}")
+            shown = raw if isinstance(raw, dict) else raw.strip()[:40]
+            print(f"    {text.splitlines()[0][:40]:42s} -> {shown!r}")
     return counts
 
 
-def run_episodes(backend, k, style, shots, chain_of_thought, n, instances, seed, verbose):
+def run_episodes(backend, k, style, shots, chain_of_thought, n, instances, seed, verbose,
+                 max_steps=None):
     demonstrations = sample_demonstrations(k, shots, style=style, seed=seed + 1) if shots else ()
     rng = np.random.default_rng(seed)
     results = []
     for instance in range(instances):
-        env = BasicNeuralSortInterfaceEnv(k=k)
+        env = BasicNeuralSortInterfaceEnv(k=k, max_episode_steps=max_steps)
         env.reset(seed=seed + instance)
         array = list(rng.integers(0, 10, n))
         while array == sorted(array):
@@ -181,8 +227,9 @@ def run_episodes(backend, k, style, shots, chain_of_thought, n, instances, seed,
         while not (terminated or truncated):
             text = render_observation(observation, k, style=style)
             messages = build_messages(text, k, style=style, demonstrations=demonstrations,
-                                      chain_of_thought=chain_of_thought)
-            raw = backend(messages, max_tokens=300 if chain_of_thought else 30)
+                                      chain_of_thought=chain_of_thought,
+                                      tool_calling=bool(backend.tools))
+            raw = backend(messages, max_tokens=_token_budget(backend, chain_of_thought))
             _strict, action = interpret(raw, k)
             if action is None:
                 # A malformed reply still costs a step, mirroring the format
@@ -216,16 +263,33 @@ def main():
                         help="0 for direct answers, 1 for chain of thought")
     parser.add_argument("--states-from", choices=("expert", "random"), default="expert",
                         help="expert: states visited on expert trajectories (on-distribution)")
+    parser.add_argument("--max-steps", type=int, default=None,
+                        help="episode step budget (default: the env's 4n^2)")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--tools", action="store_true",
+                        help="use native tool calling instead of free text")
+    parser.add_argument("--timeout", type=int, default=600,
+                        help="per-generation timeout; CPU-only inference is slow")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
-    backend = Backend(args.model)
+    if args.tools and any(shots > 0 for shots in args.shots):
+        # Demonstrations are plain assistant text; mixing them with tool mode
+        # would show the model a format it is not being asked to produce.
+        print("error: --tools does not yet support few-shot demonstrations, "
+              "which would need to be tool calls themselves. Use --shots 0.",
+              file=sys.stderr)
+        return 1
+
+    backend = Backend(args.model, timeout=args.timeout,
+                      tools=tool_schemas(args.k) if args.tools else None)
     started = time.time()
     # Fail fast and loudly: a table of zeroes from an unreachable model reads
     # exactly like a model that cannot do the task.
     try:
-        backend([{"role": "user", "content": "reply with OK"}], max_tokens=5)
+        # Health check without tools: an unreachable model must not look like a
+        # model that cannot use them.
+        Backend(args.model)([{"role": "user", "content": "reply with OK"}], max_tokens=5)
     except BackendError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
@@ -254,7 +318,8 @@ def main():
                 for cot in args.cot:
                     for n in args.n:
                         results = run_episodes(backend, args.k, style, shots, bool(cot), n,
-                                               args.instances, args.seed, args.verbose)
+                                               args.instances, args.seed, args.verbose,
+                                               max_steps=args.max_steps)
                         solved = [r for r in results if r["solved"]]
                         steps = np.mean([r["steps"] for r in solved]) if solved else float("nan")
                         malformed = np.mean([r["malformed"] for r in results]) if results else 0
