@@ -21,7 +21,8 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
     - Swap(i, j) which swaps A[v_i] with A[v_j]
     """
 
-    def __init__(self, base=10, k=4, number_of_functions=2, function_inputs=2, function_returns=1):
+    def __init__(self, base=10, k=4, number_of_functions=2, function_inputs=2, function_returns=1,
+                 max_episode_steps=None):
 
         self.number_of_functions = number_of_functions
         self.function_inputs = function_inputs
@@ -48,7 +49,7 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
             Instruction(5, 'Swap',         Tuple([Discrete(k), Discrete(k)]),       self.op_swap),
         ]
         # super call will add the action_space attribute
-        super().__init__(base, k, instructions)
+        super().__init__(base, k, instructions, max_episode_steps=max_episode_steps)
 
         self.current_function = -1
         self.previous_action = -1
@@ -223,12 +224,9 @@ class FunctionalNeuralSortInterfaceEnv(NeuralSortInterfaceEnv):
 
         # Check for solved, calculate reward
         terminated = self.A == self.tape_env.target
-        if terminated:
-            # So the strings get longer
-            self.tape_env.episode_total_reward = len(self.A)
+        truncated = self._account_for_step(terminated)
         reward = -1
-        truncated = False
-        info_dict = {'data': self.A, 'interface': list(self.v), 'function': self.current_function}
+        info_dict = {'data': list(self.A), 'interface': list(self.v), 'function': self.current_function}
 
         self.previous_action = instruction
 

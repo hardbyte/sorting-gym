@@ -33,6 +33,16 @@ class SortTapeAlgorithmicEnv(gym.Env):
         self.input_data = None
         self.target = None
 
+    def record_episode_outcome(self, solved):
+        """Record how an episode ended, so `_check_levelup` can promote.
+
+        A shortfall of 0 means "solved within the step budget"; an unsolved
+        episode records a shortfall below MIN_REWARD_SHORTFALL_FOR_PROMOTION so
+        that a single failure in the window blocks promotion. Callers must
+        invoke this exactly once per episode, on termination or truncation.
+        """
+        self.reward_shortfalls.append(0 if solved else self.MIN_REWARD_SHORTFALL_FOR_PROMOTION - 1)
+
     def _check_levelup(self):
         """Promote to longer sequences when performance is good enough."""
         if len(self.reward_shortfalls) >= self.last:

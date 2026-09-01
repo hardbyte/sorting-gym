@@ -8,9 +8,13 @@ def _test_sort_agent(agent_f, env, number_of_problems=1000, max_steps = 1000, ve
         for step in range(1, max_steps+1):
             action = agent_f(obs, k)
             obs, reward, terminated, truncated, info = env.step(action)
-            if terminated or truncated:
+            if terminated:
                 if verbose:
                     print(f"Solved problem {problem} of size {len(env.A)} in {step} steps")
                 break
+            # Truncation is failure, not success: the agent ran out of budget.
+            if truncated:
+                pytest.fail(
+                    f"Truncated on problem {problem} of size {len(env.A)} after {step} steps.")
             if step == max_steps:
                 pytest.fail(f"Didn't solve problem {problem} of size {len(env.A)}.")
