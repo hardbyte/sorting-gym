@@ -1,6 +1,7 @@
 import numpy as np
 from gymnasium import Env
 
+import math
 from dataclasses import replace
 
 from sorting_gym import DiscreteParametric
@@ -23,9 +24,18 @@ def _apply_costs(instructions, instruction_costs):
     unknown = set(instruction_costs) - known
     if unknown:
         raise ValueError(f"unknown instruction(s) {sorted(unknown)}; expected {sorted(known)}")
-    return [replace(instruction, cost=float(instruction_costs.get(instruction.name,
-                                                                 instruction.cost)))
-            for instruction in instructions]
+
+    priced = []
+    for instruction in instructions:
+        cost = float(instruction_costs.get(instruction.name, instruction.cost))
+        # A negative price pays the agent to act, so looping on a bounded no-op
+        # such as MoveVar at an edge earns reward until truncation. NaN spreads
+        # into every reward and comparison downstream. Neither is a cost model.
+        if not math.isfinite(cost) or cost < 0:
+            raise ValueError(
+                f"cost for {instruction.name!r} must be finite and non-negative, got {cost!r}")
+        priced.append(replace(instruction, cost=cost))
+    return priced
 
 
 class NeuralSortInterfaceEnv(Env):

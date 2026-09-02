@@ -12,8 +12,9 @@ env = BasicNeuralSortInterfaceEnv(
 ## Which cost axes can do anything
 
 Measuring the reference agents first ruled out the obvious experiment.
-`SwapWithNext` is adjacent-only, so **every correct policy performs exactly one
-swap per inversion**. On the same 8 instances at n=20:
+`SwapWithNext` is adjacent-only, so a policy that only ever swaps an inverted
+adjacent pair performs **exactly one swap per inversion**. On the same 8
+instances at n=20:
 
 | agent | total | SwapWithNext | MoveVar | AssignVar |
 |---|---|---|---|---|
@@ -22,10 +23,21 @@ swap per inversion**. On the same 8 instances at n=20:
 | synthesized | 2766 | 659 | 2003 | 104 |
 
 All three spend **the same 659 swaps** (the mean inversion count is 82.4, and
-8 x 82.4 = 659). Pricing swaps at 20 adds exactly 1565 to every total, so it
-cannot change which algorithm wins. "Expensive swaps therefore selection sort"
-needs the functional environment's arbitrary `Swap(i, j)`; it is a dead axis
-here.
+8 x 82.4 = 659). Pricing swaps at 20 adds exactly 1565 to each of these totals,
+so it cannot reorder *them*.
+
+That is a claim about swap-minimal policies, not about every correct policy.
+One swap per inversion is a lower bound, not an invariant: a policy may swap an
+already ordered pair and undo it later, and `op_swap_with_next` clamps to the
+last index, so a swap at the right edge exchanges an element with itself and is
+still billed. Since `v1` starts at the right edge, any policy can prepend such
+a no-op and still sort. Pricing swaps therefore does separate a wasteful policy
+from a swap-minimal one; what it cannot do is separate bubble from insertion,
+because both are swap-minimal. Both facts are pinned in
+`tests/test_instruction_costs.py`.
+
+"Expensive swaps therefore selection sort" still does not follow here, and
+needs the functional environment's arbitrary `Swap(i, j)`.
 
 The live axis is `MoveVar` against `AssignVar`, which the two algorithms trade
 in opposite directions. Bubble is cheaper than insertion once

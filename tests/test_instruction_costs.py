@@ -74,3 +74,51 @@ def test_the_cheaper_algorithm_depends_on_the_cost_model():
             < _episode_cost(bubble_sort_agent, UNIFORM))
     assert (_episode_cost(bubble_sort_agent, EXPENSIVE_ASSIGN)
             < _episode_cost(insertion_sort_agent, EXPENSIVE_ASSIGN))
+
+
+@pytest.mark.parametrize("bad", [-1, float("nan"), float("inf"), float("-inf")])
+def test_costs_must_be_finite_and_non_negative(bad):
+    """A negative price pays the agent to act: looping on a bounded no-op such
+    as MoveVar at an edge would earn reward until truncation. NaN spreads into
+    every reward and comparison downstream."""
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        BasicNeuralSortInterfaceEnv(k=3, instruction_costs={"MoveVar": bad})
+
+
+def test_zero_cost_is_allowed():
+    env = BasicNeuralSortInterfaceEnv(k=3, instruction_costs={"MoveVar": 0})
+    env.reset(seed=0)
+    _obs, reward, _t, _tr, info = env.step((1, 0, True))
+    assert reward == 0 and info["cost"] == 0
+
+
+def test_a_swap_at_the_right_edge_is_a_charged_no_op():
+    """`op_swap_with_next` clamps to the last index, so a swap there exchanges
+    an element with itself but is still billed."""
+    env = BasicNeuralSortInterfaceEnv(k=3)
+    env.reset(seed=0)
+    env.A, env.tape_env.target = [3, 1, 2], [1, 2, 3]
+    env.v[:] = [2, 2, 2]
+    _obs, reward, _t, _tr, info = env.step((0, 0))
+    assert env.A == [3, 1, 2]
+    assert reward == -1 and info["cost"] == 1
+
+
+def test_swap_count_is_not_invariant_across_correct_policies():
+    """Only swap-minimal policies spend one swap per inversion.
+
+    At reset v1 is at the right edge, so a policy may prepend a charged no-op
+    swap there and still sort. The swap count therefore is not fixed across all
+    correct policies, and an expensive-swap model can separate a wasteful policy
+    from a swap-minimal one - it just cannot separate bubble from insertion,
+    since both are swap-minimal.
+    """
+    def wasteful(observation, k, seen=[]):
+        if not seen:
+            seen.append(True)
+            return (0, 1)          # SwapWithNext(v1) at the right edge: a no-op
+        return bubble_sort_agent(observation, k)
+
+    plain = _episode_cost(bubble_sort_agent, EXPENSIVE_SWAP, n=8, trials=1)
+    padded = _episode_cost(wasteful, EXPENSIVE_SWAP, n=8, trials=1)
+    assert padded == plain + EXPENSIVE_SWAP["SwapWithNext"]
