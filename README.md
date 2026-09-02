@@ -53,13 +53,12 @@ instruction-specific arguments:
 
 - `KnapsackEnv-v0` - 0/1 Knapsack problem. Items have weight, value, and value/weight ratio as comparison attributes. Agent selects items without exceeding capacity.
 - `BinPackingEnv-v0` - 1D Bin Packing problem. Items have sizes and must be packed into minimum number of fixed-capacity bins.
-- `JobShopSchedulingEnv-v0` - Job Shop Scheduling. Schedule operations (job × machine) to minimize makespan.
 
 All combinatorial environments share the same pointer-based neural interface design:
 - **Constant-size observations** via pairwise comparisons between pointer-referenced items
 - **Instruction-based actions** (select, move pointer, assign pointer, finish)
 - **Progressive difficulty** — instance size increases as the agent improves
-- Scripted heuristic agents for validation (greedy knapsack, first-fit-decreasing, SPT)
+- Scripted heuristic agents for validation (greedy knapsack, first-fit-decreasing)
 
 ## Parametric Action Space
 

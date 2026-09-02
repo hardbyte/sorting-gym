@@ -17,7 +17,6 @@ from stable_baselines3.common.callbacks import BaseCallback
 
 from sorting_gym.envs.basic_neural_sort_interface import BasicNeuralSortInterfaceEnv
 from sorting_gym.envs.bin_packing import BinPackingEnv
-from sorting_gym.envs.job_shop import JobShopSchedulingEnv
 from sorting_gym.envs.knapsack import KnapsackEnv
 from sorting_gym.envs.wrappers import MultiDiscreteActionSpaceWrapper
 
@@ -64,10 +63,6 @@ ENV_CONFIGS = {
     "binpacking": {
         "make": lambda: BinPackingEnv(k=4, base=20, starting_min_items=4),
         "desc": "Bin Packing (k=4 pointers, small instances)",
-    },
-    "jobshop": {
-        "make": lambda: JobShopSchedulingEnv(k=4, base=10, starting_min_jobs=2, num_machines=2),
-        "desc": "Job Shop Scheduling (k=4, 2 jobs x 2 machines)",
     },
 }
 

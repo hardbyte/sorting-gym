@@ -315,25 +315,6 @@ def first_fit_decreasing_agent(env):
     return actions
 
 
-def spt_scheduling_agent(env):
-    """Shortest Processing Time first scheduling heuristic.
-
-    Pre-computes a sequence of actions. Returns a list of actions.
-    """
-    indices = sorted(range(env.num_items),
-                     key=lambda i: env.processing_times[i])
-
-    actions = []
-    ptr_pos = int(env.v[0])
-    for idx in indices:
-        moves, ptr_pos = _move_pointer_actions(0, ptr_pos, idx, move_opcode=1)
-        actions.extend(moves)
-        actions.append((0, 0))  # ScheduleNext(0)
-
-    actions.append((3, 0))  # Finish
-    return actions
-
-
 def ring_sort_agent(obs, k):
     """Sort a ring, where there is no first element to anchor on.
 

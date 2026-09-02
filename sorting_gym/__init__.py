@@ -31,8 +31,3 @@ register(
     entry_point='sorting_gym.envs.bin_packing:BinPackingEnv'
 )
 
-register(
-    id='JobShopSchedulingEnv-v0',
-    entry_point='sorting_gym.envs.job_shop:JobShopSchedulingEnv'
-)
-

@@ -24,8 +24,10 @@ import urllib.request
 
 import numpy as np
 
-from sorting_gym.agents.scripted import bubble_sort_agent, insertion_sort_agent
+from sorting_gym.agents.scripted import (
+    bubble_sort_agent, insertion_sort_agent, ring_sort_agent)
 from sorting_gym.envs.basic_neural_sort_interface import BasicNeuralSortInterfaceEnv
+from sorting_gym.envs.ring import RingSortInterfaceEnv, is_rotation_of_sorted
 from sorting_gym.text import ParseError, parse_action, parse_observation, render_observation
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
@@ -62,9 +64,7 @@ only see comparison facts, given to your function as `facts`, with these methods
   facts.data_greater_than(i, j)-> bool   A[v_i] >  A[v_j]
   facts.data_neighbour_greater(i, d) -> bool  A[v_i] > A[v_i + d], d is +1 or -1
   facts.data_neighbour_less(i, d)    -> bool  A[v_i] < A[v_i + d]
-  facts.at_left_edge(i)        -> bool   v_i is at the first element
-  facts.at_right_edge(i)       -> bool   v_i is at the last element
-
+{edge_accessors}
 Return exactly one instruction as a string:
 
   "SwapWithNext(i)"   swap A[v_i] with A[v_i + 1]
@@ -72,13 +72,14 @@ Return exactly one instruction as a string:
   "MoveVar(i, -1)"    move v_i one place left (stops at the start)
   "AssignVar(i, j)"   set v_i = v_j
 
+{topology}
+
 You cannot recover absolute positions or element values, and there is no way to
 learn how long the array is. The comparisons listed above are the only
 information available, so a policy that tries to reconstruct indices or the
 contents of A cannot work. Decide purely from the relations.
 
-At the start of an episode v0 and v2 are at the first element, v1 at the last.
-The episode ends as soon as A is sorted. Your
+{start_and_goal} Your
 function is called fresh each step and keeps no state between calls, so every
 decision must come from `facts` alone.
 
@@ -99,13 +100,50 @@ def policy(facts):
 ```'''
 
 
+ARRAY_EDGES = """\
+  facts.at_left_edge(i)        -> bool   v_i is at the first element
+  facts.at_right_edge(i)       -> bool   v_i is at the last element
+"""
+
+ARRAY_TOPOLOGY = """\
+MoveVar stops at the two ends of the array, and SwapWithNext at the last
+element does nothing."""
+
+ARRAY_START = """\
+At the start of an episode v0 and v2 are at the first element, v1 at the last.
+The episode ends as soon as A is sorted."""
+
+RING_EDGES = ""
+
+RING_TOPOLOGY = """\
+A is arranged in a RING. There is no first or last element: moving right from
+any element eventually returns to where you started, and SwapWithNext at any
+element swaps it with the one after it around the ring. Nothing is at an edge,
+because there are no edges."""
+
+RING_START = """\
+At the start of an episode v0 and v2 are together somewhere on the ring and v1
+is elsewhere. The episode ends as soon as the ring reads in non-decreasing
+order from some starting point - since the ring has no beginning, any rotation
+of sorted order counts as sorted."""
+
+ENVIRONMENTS = {
+    "array": (BasicNeuralSortInterfaceEnv, ARRAY_EDGES, ARRAY_TOPOLOGY, ARRAY_START),
+    "ring": (RingSortInterfaceEnv, RING_EDGES, RING_TOPOLOGY, RING_START),
+}
+
+
 def cost_table(costs):
     return "\n".join(f"  {name:14s} costs {value}"
                       for name, value in sorted(costs.items(), key=lambda kv: -kv[1]))
 
 
-def build_api(costs):
-    return API.replace("{cost_table}", cost_table(costs))
+def build_api(costs, env_kind="array"):
+    _cls, edges, topology, start = ENVIRONMENTS[env_kind]
+    return (API.replace("{cost_table}", cost_table(costs))
+               .replace("{edge_accessors}", edges)
+               .replace("{topology}", topology)
+               .replace("{start_and_goal}", start))
 
 
 def call(model, messages, timeout=3600, think=False, max_tokens=4000, context=16384):
@@ -168,17 +206,28 @@ def extract_policy(reply):
     return policy, source
 
 
+def _already_solved(array, env_kind):
+    return is_rotation_of_sorted(array) if env_kind == "ring" else array == sorted(array)
+
+
+def _unsolved_instance(rng, length, env_kind, base=10):
+    """An instance that still needs work, so a do-nothing policy scores zero."""
+    while True:
+        array = list(rng.integers(0, base, length))
+        if not _already_solved(array, env_kind):
+            return array
+
+
 def evaluate(policy, k=3, lengths=(5, 10, 20), instances=20, seed=0, budget_factor=4,
-             costs=None):
+             costs=None, env_kind="array"):
     """Solve rate and step counts on real instances, plus the first error seen."""
     rng = np.random.default_rng(seed)
     solved, steps, costs_seen, failures, first_error = 0, [], [], [], None
     for length in lengths:
         for instance in range(instances):
-            array = list(rng.integers(0, 10, length))
-            while array == sorted(array):
-                array = list(rng.integers(0, 10, length))
-            env = BasicNeuralSortInterfaceEnv(
+            array = _unsolved_instance(rng, length, env_kind)
+            env_cls = ENVIRONMENTS[env_kind][0]
+            env = env_cls(
                 k=k, max_episode_steps=budget_factor * length * length,
                 instruction_costs=costs)
             env.reset(seed=seed)
@@ -209,7 +258,7 @@ def evaluate(policy, k=3, lengths=(5, 10, 20), instances=20, seed=0, budget_fact
             "solve_rate": solved / total,
             "mean_steps": float(np.mean([s for _, s in steps])) if steps else float("nan"),
             "mean_cost": float(np.mean(costs_seen)) if costs_seen else float("inf"),
-            "instruction_mix": _instruction_mix(policy, k=k, costs=costs),
+            "instruction_mix": _instruction_mix(policy, k=k, costs=costs, env_kind=env_kind),
             "by_length": {length: sum(1 for solved_length, _ in steps
                                       if solved_length == length)
                           for length in lengths},
@@ -253,23 +302,35 @@ def main():
     parser.add_argument("--timeout", type=int, default=3600,
                         help="per-generation timeout; a large model writing code on CPU "
                              "can take many minutes")
+    parser.add_argument("--env", choices=sorted(ENVIRONMENTS), default="array",
+                        dest="env_kind",
+                        help="array has edges to anchor on; ring does not")
     parser.add_argument("--costs", choices=sorted(COST_MODELS), default="uniform",
                         help="instruction price list the candidate is optimising")
+    parser.add_argument("--assign-cost", type=float, default=None,
+                        help="override the AssignVar price, for a dose-response sweep "
+                             "across the MoveVar/AssignVar trade-off")
     parser.add_argument("--out", default=None, help="write the best program here")
     args = parser.parse_args()
 
-    costs = COST_MODELS[args.costs]
+    costs = dict(COST_MODELS[args.costs])
+    if args.assign_cost is not None:
+        costs["AssignVar"] = args.assign_cost
     evaluation = {"lengths": tuple(args.lengths), "instances": args.instances,
-                  "costs": costs}
-    api = build_api(costs)
+                  "costs": costs, "env_kind": args.env_kind}
+    api = build_api(costs, args.env_kind)
     print(f"model={args.model} rounds={args.rounds} candidates={args.candidates}")
     print(f"scoring on lengths {args.lengths}, {args.instances} instances each")
-    print(f"cost model {args.costs}: {costs}\n")
+    print(f"env {args.env_kind}, cost model {args.costs}: {costs}\n")
 
     # Reference numbers come from the same instances and budget, so the
     # comparison against a candidate is like for like.
-    for name, agent in (("insertion", insertion_sort_agent), ("bubble", bubble_sort_agent)):
-        scores = evaluate_agent(agent, args.lengths, args.instances, costs=costs)
+    references = (("insertion", insertion_sort_agent), ("bubble", bubble_sort_agent))
+    if args.env_kind == "ring":
+        references = (("ring_seam", ring_sort_agent), ("bubble", bubble_sort_agent))
+    for name, agent in references:
+        scores = evaluate_agent(agent, args.lengths, args.instances, costs=costs,
+                                env_kind=args.env_kind)
         print(f"reference {name:10s} solved {scores['solved']}/{scores['total']} "
               f"mean steps {scores['mean_steps']:.1f} mean cost {scores['mean_cost']:.1f}")
     print()
@@ -347,17 +408,15 @@ def main():
 INSTRUCTION_NAMES = {0: "SwapWithNext", 1: "MoveVar", 2: "AssignVar"}
 
 
-def _instruction_mix(policy, k=3, costs=None, n=20, trials=4):
+def _instruction_mix(policy, k=3, costs=None, n=20, trials=4, env_kind="array"):
     """How the policy spends its instructions - the thing a cost model steers."""
     from collections import Counter
     rng = np.random.default_rng(7)
     counts = Counter()
     for _ in range(trials):
-        array = list(rng.integers(0, 10, n))
-        while array == sorted(array):
-            array = list(rng.integers(0, 10, n))
-        env = BasicNeuralSortInterfaceEnv(k=k, max_episode_steps=20 * n * n,
-                                          instruction_costs=costs)
+        array = _unsolved_instance(rng, n, env_kind)
+        env = ENVIRONMENTS[env_kind][0](k=k, max_episode_steps=20 * n * n,
+                                        instruction_costs=costs)
         env.reset(seed=0)
         env.A, env.tape_env.target = list(array), sorted(array)
         env.v[::2], env.v[1::2] = 0, n - 1
@@ -376,7 +435,7 @@ def _instruction_mix(policy, k=3, costs=None, n=20, trials=4):
     return dict(counts)
 
 
-def evaluate_agent(agent, lengths, instances, costs=None):
+def evaluate_agent(agent, lengths, instances, costs=None, env_kind="array"):
     """Score a scripted agent on the same instances a candidate program sees.
 
     Scripted agents read the observation bits directly rather than the facts
@@ -386,11 +445,9 @@ def evaluate_agent(agent, lengths, instances, costs=None):
     solved, steps, episode_costs = 0, [], []
     for length in lengths:
         for _ in range(instances):
-            array = list(rng.integers(0, 10, length))
-            while array == sorted(array):
-                array = list(rng.integers(0, 10, length))
-            env = BasicNeuralSortInterfaceEnv(k=3, max_episode_steps=4 * length * length,
-                                              instruction_costs=costs)
+            array = _unsolved_instance(rng, length, env_kind)
+            env = ENVIRONMENTS[env_kind][0](k=3, max_episode_steps=4 * length * length,
+                                            instruction_costs=costs)
             env.reset(seed=0)
             env.A, env.tape_env.target = list(array), sorted(array)
             env.v[::2], env.v[1::2] = 0, length - 1
