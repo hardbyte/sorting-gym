@@ -210,7 +210,9 @@ def evaluate(policy, k=3, lengths=(5, 10, 20), instances=20, seed=0, budget_fact
             "mean_steps": float(np.mean([s for _, s in steps])) if steps else float("nan"),
             "mean_cost": float(np.mean(costs_seen)) if costs_seen else float("inf"),
             "instruction_mix": _instruction_mix(policy, k=k, costs=costs),
-            "by_length": {length: sum(1 for l, _ in steps if l == length) for length in lengths},
+            "by_length": {length: sum(1 for solved_length, _ in steps
+                                      if solved_length == length)
+                          for length in lengths},
             "first_error": first_error,
             "budget_failures": sum(1 for _, why in failures if why == "budget"),
             "raised": sum(1 for _, why in failures if why == "raised")}
