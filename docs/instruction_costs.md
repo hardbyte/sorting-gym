@@ -66,8 +66,30 @@ invites copying it: every usable candidate came back with the seed's exact cost
 of 2040.1 and its exact instruction mix. The same model, asked to write a
 policy *from scratch*, produced a correct one on its first attempt.
 
-So the better test is from scratch under different prices, comparing the
-programs that come back, rather than refinement from a shared starting point.
+### From scratch under different prices
 
-These runs were CPU-only, at roughly 15 minutes per generation, which is why
-the sample is small. Treat the negative result as provisional.
+The cleaner test, and the more informative answer. Same model, same prompt
+structure, only the price table differing:
+
+| cost model | program | mean cost | instruction mix |
+|---|---|---|---|
+| uniform | bubble sort | 133.4 | swap 319, move 951, assign 49 |
+| expensive_move | bubble sort | 2040.1 | swap 319, move 951, assign 49 |
+
+Different source text - the second detects end of pass with `v_equals(0, 1)`
+rather than `at_right_edge(0)` - but the same algorithm, the same instruction
+mix, and the same cost. **The price list did not change what was written.**
+
+It should have. Under `expensive_move` an insertion-style policy is about half
+the price (reference insertion 826.4 against bubble 1576.8), and the policy the
+model produced costs 2040.1.
+
+So on the evidence here the model's prior towards bubble sort dominates the
+stated objective. That is evidence *for* the memorisation concern that motivated
+this work, not against it: a search that reproduces the same textbook algorithm
+whatever it is asked to optimise is recalling rather than searching.
+
+These runs were CPU-only at roughly 15 minutes per generation, so each cost
+model has a single usable sample. The matching instruction mixes are striking
+but the sample is small; treat it as provisional and rerun on a GPU with
+several samples per price list before relying on it.
