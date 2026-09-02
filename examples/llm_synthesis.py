@@ -43,10 +43,17 @@ COST_MODELS = {
 CODE_BLOCK = re.compile(r"```(?:python)?\s*(.*?)```", re.DOTALL)
 OPEN_BLOCK = re.compile(r"```(?:python)?\s*(.*)", re.DOTALL)
 
+# Deliberately small, but not so small that ordinary Python fails: candidates
+# were being rejected for calling str(), enumerate() and the like, which counted
+# as the model writing a bad policy when it was the sandbox being too strict.
 SAFE_BUILTINS = {
     "True": True, "False": False, "None": None,
-    "abs": abs, "all": all, "any": any, "bool": bool, "int": int, "len": len,
-    "max": max, "min": min, "range": range, "sorted": sorted, "sum": sum,
+    "abs": abs, "all": all, "any": any, "bool": bool, "dict": dict,
+    "divmod": divmod, "enumerate": enumerate, "filter": filter, "float": float,
+    "frozenset": frozenset, "int": int, "isinstance": isinstance, "len": len,
+    "list": list, "map": map, "max": max, "min": min, "range": range,
+    "reversed": reversed, "round": round, "set": set, "sorted": sorted,
+    "str": str, "sum": sum, "tuple": tuple, "zip": zip,
 }
 
 API = '''\
@@ -146,13 +153,14 @@ def build_api(costs, env_kind="array"):
                .replace("{start_and_goal}", start))
 
 
-def call(model, messages, timeout=3600, think=False, max_tokens=4000, context=16384):
+def call(model, messages, timeout=3600, think=False, max_tokens=4000, context=16384,
+         temperature=0.7):
     # ollama defaults to a 4096 token context. The prompt plus a seed program
     # nearly fills that, leaving no room to generate, which shows up as a reply
     # containing no function at all rather than as an error.
     payload = json.dumps({
         "model": model, "messages": messages, "stream": False, "think": think,
-        "options": {"temperature": 0.7, "num_predict": max_tokens,
+        "options": {"temperature": temperature, "num_predict": max_tokens,
                     "num_ctx": context},
     }).encode()
     request = urllib.request.Request(
@@ -291,6 +299,7 @@ def main():
     parser.add_argument("--candidates", type=int, default=3, help="samples per round")
     parser.add_argument("--instances", type=int, default=20)
     parser.add_argument("--lengths", type=int, nargs="+", default=[5, 10, 20])
+    parser.add_argument("--temperature", type=float, default=0.7)
     parser.add_argument("--think", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--context", type=int, default=16384,
@@ -355,7 +364,7 @@ def main():
         for candidate in range(args.candidates):
             try:
                 reply = call(args.model, messages, think=args.think, timeout=args.timeout,
-                             context=args.context)
+                             context=args.context, temperature=args.temperature)
                 calls += 1
             except Exception as error:                 # noqa: BLE001
                 print(f"  backend error: {error}", file=sys.stderr)

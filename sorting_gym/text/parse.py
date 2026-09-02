@@ -18,6 +18,14 @@ class ParseError(ValueError):
     """Raised when model output is not a well formed observation or action."""
 
 
+_ACCESSORS = (
+    "v_less_than(i, j)", "v_equals(i, j)", "v_greater_than(i, j)",
+    "data_less_than(i, j)", "data_equals(i, j)", "data_greater_than(i, j)",
+    "data_neighbour_greater(i, direction)", "data_neighbour_less(i, direction)",
+    "at_left_edge(i)", "at_right_edge(i)",
+)
+
+
 @dataclass
 class ObservationFacts:
     """The comparison predicates recovered from a rendered observation.
@@ -30,6 +38,13 @@ class ObservationFacts:
     right: dict = field(default_factory=dict)
     position: dict = field(default_factory=dict)
     value: dict = field(default_factory=dict)
+
+    def __getattr__(self, name):
+        # Only reached when normal lookup fails. Generated policies invent
+        # plausible-sounding accessors, and this error text is fed back to the
+        # model that wrote them, so it has to name what actually exists.
+        raise AttributeError(
+            f"ObservationFacts has no {name!r}. Available: {', '.join(_ACCESSORS)}")
 
     def _check(self, *indices):
         """Reject out-of-range pointers with a message naming the valid range.
