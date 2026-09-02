@@ -17,6 +17,11 @@ register(
 )
 
 register(
+    id='RingSortInterfaceEnv-v0',
+    entry_point='sorting_gym.envs.ring:RingSortInterfaceEnv'
+)
+
+register(
     id='KnapsackEnv-v0',
     entry_point='sorting_gym.envs.knapsack:KnapsackEnv'
 )

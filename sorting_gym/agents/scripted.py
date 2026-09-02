@@ -332,3 +332,23 @@ def spt_scheduling_agent(env):
 
     actions.append((3, 0))  # Finish
     return actions
+
+
+def ring_sort_agent(obs, k):
+    """Sort a ring, where there is no first element to anchor on.
+
+    v1 stays where it started and marks an arbitrary seam; v0 scans and bubbles
+    adjacent pairs, but never swaps across the seam. That restriction is what
+    makes the ring terminate: without it a large element is pushed around the
+    ring forever, since there is no boundary for it to accumulate against.
+
+    Expressible with the same bits as the array agents, but no textbook sort is
+    written this way -- there is normally an edge to anchor on.
+    """
+    scanner, seam = 0, 1
+    if v_equals(obs, scanner, seam, k):
+        # Standing on the seam: step over it rather than swapping across it.
+        return MoveVar(scanner, +1)
+    if data_neighbour_greater(obs, scanner, +1):
+        return SwapWithNext(scanner)
+    return MoveVar(scanner, +1)
