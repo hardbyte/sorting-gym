@@ -39,6 +39,7 @@ COST_MODELS = {
     "expensive_swap": {"SwapWithNext": 20, "MoveVar": 1, "AssignVar": 1},
 }
 CODE_BLOCK = re.compile(r"```(?:python)?\s*(.*?)```", re.DOTALL)
+OPEN_BLOCK = re.compile(r"```(?:python)?\s*(.*)", re.DOTALL)
 
 SAFE_BUILTINS = {
     "True": True, "False": False, "None": None,
@@ -122,11 +123,39 @@ def call(model, messages, timeout=3600, think=False, max_tokens=4000, context=16
         return json.load(response)["message"]["content"]
 
 
+def _candidate_sources(reply):
+    """Every plausible way the function might be embedded in a reply.
+
+    Models narrate around the code, and a long reply can be cut off before its
+    closing fence. Falling back to the whole reply then tries to compile prose,
+    or the fence marker itself, so an unterminated block and a bare `def` both
+    need handling.
+    """
+    for block in CODE_BLOCK.findall(reply):
+        if "def policy" in block:
+            yield block
+    open_block = OPEN_BLOCK.search(reply)
+    if open_block and "def policy" in open_block.group(1):
+        yield open_block.group(1)
+    if "def policy" in reply:
+        # Last resort: take the definition itself, dropping surrounding prose.
+        yield reply[reply.index("def policy"):]
+
+
 def extract_policy(reply):
     """Compile the model's reply into a callable, or raise ValueError."""
-    blocks = CODE_BLOCK.findall(reply)
-    source = blocks[0] if blocks else reply
-    if "def policy" not in source:
+    source, errors = None, []
+    for candidate in _candidate_sources(reply):
+        try:
+            compile(candidate, "<candidate>", "exec")
+        except SyntaxError as error:
+            errors.append(str(error))
+            continue
+        source = candidate
+        break
+    if source is None:
+        if errors:
+            raise ValueError(f"no compilable `def policy`: {errors[0]}")
         raise ValueError("no `def policy` in the reply")
     namespace = {"__builtins__": SAFE_BUILTINS}
     try:
