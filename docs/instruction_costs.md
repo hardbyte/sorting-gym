@@ -50,11 +50,24 @@ Open. The *scoring* demonstrably responds: the same two algorithms swap places
 when only the price list changes. Whether an LLM search finds the cheaper
 algorithm is not yet shown.
 
-Seeding `examples/llm_synthesis.py` with the synthesized bubble policy and
-running `ornith-1.5:9b` under `uniform` and `expensive_move` (6 generations
-each, identical seed, only the prices differing) produced no movement: every
-candidate either failed to sort or reproduced the seed verbatim. That is a
-statement about a 9B model refining code on CPU, not about the hypothesis.
+### What was tried
 
-To settle it, run a larger model, and prefer `expensive_move`, where the
-move-heavy seed costs 1904 against a 133 baseline and the pressure is largest.
+Seeding `examples/llm_synthesis.py` with the synthesized bubble policy and
+varying only the price list:
+
+| model | cost model | generations | outcome |
+|---|---|---|---|
+| ornith-1.5:9b | uniform | 6 | broke, or reproduced the seed |
+| ornith-1.5:9b | expensive_move | 6 | broke, or reproduced the seed |
+| qwen3.6:27b | expensive_move | 6 | 2 reproduced the seed byte-identically, 4 unusable |
+
+**Seeding looks counterproductive.** A prompt containing a working program
+invites copying it: every usable candidate came back with the seed's exact cost
+of 2040.1 and its exact instruction mix. The same model, asked to write a
+policy *from scratch*, produced a correct one on its first attempt.
+
+So the better test is from scratch under different prices, comparing the
+programs that come back, rather than refinement from a shared starting point.
+
+These runs were CPU-only, at roughly 15 minutes per generation, which is why
+the sample is small. Treat the negative result as provisional.
