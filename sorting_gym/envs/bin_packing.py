@@ -9,6 +9,8 @@ import numpy as np
 from gymnasium.spaces import Discrete, MultiBinary, Tuple
 
 from sorting_gym.envs.basic_neural_sort_interface import Instruction
+from sorting_gym.bounds import (
+    EXACT_ITEM_LIMIT, approximation_ratio, bin_packing_lower_bound, bin_packing_optimal)
 from sorting_gym.envs.combinatorial_base import NeuralCombinatorialInterfaceEnv
 
 
@@ -59,6 +61,23 @@ class BinPackingEnv(NeuralCombinatorialInterfaceEnv):
     def _num_scalar_features(self):
         # Discretized: num_bins / num_items (4 bins), fraction_unassigned (4 bins)
         return 8
+
+    def lower_bound_bins(self):
+        """Total size over capacity, rounded up. Always valid, sometimes loose."""
+        return bin_packing_lower_bound([size for (size,) in self.items], self.bin_capacity)
+
+    def optimal_bins(self):
+        """Fewest bins, exactly. Exponential, so it refuses large instances."""
+        return bin_packing_optimal([size for (size,) in self.items], self.bin_capacity)
+
+    def approximation_ratio(self):
+        """Optimal over achieved, so 1.0 is optimal here too. Falls back to the
+        lower bound when the instance is too large to solve exactly."""
+        try:
+            best = self.optimal_bins()
+        except ValueError:
+            best = self.lower_bound_bins()
+        return approximation_ratio(self.num_bins, best, sense="min")
 
     def _generate_instance(self):
         n = self._get_num_items()
@@ -155,6 +174,11 @@ class BinPackingEnv(NeuralCombinatorialInterfaceEnv):
             'num_bins': self.num_bins,
             'num_unassigned': int((self.assignments < 0).sum()),
         }
+        if terminated:
+            info['lower_bound_bins'] = self.lower_bound_bins()
+            if self.num_items <= EXACT_ITEM_LIMIT:
+                info['optimal_bins'] = self.optimal_bins()
+            info['approximation_ratio'] = self.approximation_ratio()
         return self._get_obs(), reward, terminated, truncated, info
 
     def render(self):

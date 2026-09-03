@@ -9,6 +9,7 @@ import numpy as np
 from gymnasium.spaces import Discrete, MultiBinary, Tuple
 
 from sorting_gym.envs.basic_neural_sort_interface import Instruction
+from sorting_gym.bounds import approximation_ratio, knapsack_lp_bound, knapsack_optimal
 from sorting_gym.envs.combinatorial_base import NeuralCombinatorialInterfaceEnv
 
 
@@ -62,6 +63,24 @@ class KnapsackEnv(NeuralCombinatorialInterfaceEnv):
     def _num_scalar_features(self):
         # Discretized remaining_capacity / total_capacity in 4 bins
         return 4
+
+    def optimal_value(self):
+        """Best achievable value for the current instance, by exact DP.
+
+        Scoring only. This reads the instance directly, so it must never reach
+        a policy -- the whole point of the interface is that the agent cannot
+        see weights and values.
+        """
+        return knapsack_optimal(self.items, self.capacity)
+
+    def upper_bound(self):
+        """Fractional relaxation, for when the DP table would be unwieldy."""
+        return knapsack_lp_bound(self.items, self.capacity)
+
+    def approximation_ratio(self):
+        """Achieved value over optimal: 1.0 is optimal, and a raw value is
+        meaningless without it."""
+        return approximation_ratio(self.total_value, self.optimal_value(), sense="max")
 
     def _generate_instance(self):
         n = self._get_num_items()
@@ -147,6 +166,12 @@ class KnapsackEnv(NeuralCombinatorialInterfaceEnv):
             'remaining_capacity': self.remaining_capacity,
             'num_selected': int(self.selected.sum()),
         }
+        if terminated:
+            # Only on termination: the DP costs more than a step does.
+            optimum = self.optimal_value()
+            info['optimal_value'] = optimum
+            info['approximation_ratio'] = approximation_ratio(
+                self.total_value, optimum, sense="max")
         return self._get_obs(), reward, terminated, truncated, info
 
     def render(self, mode="human"):
